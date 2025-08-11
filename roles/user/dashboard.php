@@ -260,7 +260,6 @@ function getUserInitials($fullName) {
         <!-- Navbar -->
         <nav>
             <i class='bx bx-menu'></i>
-            <a href="#" class="nav-link">Categories</a>
             <form action="#">
                 <div class="form-input">
                     <input type="search" placeholder="Search...">
@@ -299,10 +298,6 @@ function getUserInitials($fullName) {
                         </li>
                     </ul>
                 </div>
-                <a href="upload.php" class="btn-download">
-                    <i class='bx bxs-cloud-upload'></i>
-                    <span class="text">Upload File</span>
-                </a>
             </div>
 
             <!-- Statistics Cards -->
