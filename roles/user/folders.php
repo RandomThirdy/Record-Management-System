@@ -24,54 +24,29 @@ if (!$currentUser['is_approved']) {
     exit();
 }
 
-// Department configuration
-$departments = [
-    'TED' => [
-        'name' => 'Teacher Education Department',
-        'icon' => 'bxs-graduation',
-        'color' => '#f59e0b' 
-    ],
-    'MD' => [
-        'name' => 'Management Department', 
-        'icon' => 'bxs-business',
-        'color' => '#1e40af'
-    ],
-    'FASD' => [
-        'name' => 'Fisheries and Aquatic Science Department',
-        'icon' => 'bx bx-water',
-        'color' => '#0284c7'
-    ],
-    'ASD' => [
-        'name' => 'Arts and Science Department',
-        'icon' => 'bxs-palette',
-        'color' => '#d946ef'
-    ],
-    'ITD' => [
-        'name' => 'Information Technology Department',
-        'icon' => 'bxs-chip',
-        'color' => '#0f766e' 
-    ],
-    'NSTP' => [
-        'name' => 'National Service Training Program',
-        'icon' => 'bxs-user-check',
-        'color' => '#22c55e'
-    ],
-    'Other Files' => [
-        'name' => 'Others',
-        'icon' => 'bxs-file',
-        'color' => '#6b7280'
-    ]
-];
+// Get departments from database
+function getDepartments($pdo) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM departments WHERE is_active = 1 ORDER BY department_name");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch(Exception $e) {
+        error_log("Error fetching departments: " . $e->getMessage());
+        return [];
+    }
+}
 
-// Map department IDs to department codes
-$departmentMap = [
-    1 => 'TED',
-    2 => 'MD',
-    3 => 'ITD',
-    4 => 'FASD',
-    5 => 'ASD',
-    6 => 'NSTP',
-    7 => 'Other Files'
+$departments = getDepartments($pdo);
+
+// Department configuration with colors and icons
+$departmentConfig = [
+    'TED' => ['icon' => 'bxs-graduation', 'color' => '#f59e0b'],
+    'MD' => ['icon' => 'bxs-business', 'color' => '#1e40af'],
+    'FASD' => ['icon' => 'bx bx-water', 'color' => '#0284c7'],
+    'ASD' => ['icon' => 'bxs-palette', 'color' => '#d946ef'],
+    'ITD' => ['icon' => 'bxs-chip', 'color' => '#0f766e'],
+    'NSTP' => ['icon' => 'bxs-user-check', 'color' => '#22c55e'],
+    'Others' => ['icon' => 'bxs-file', 'color' => '#6b7280']
 ];
 
 // Get department information for profile image - SAFE ACCESS
@@ -117,32 +92,40 @@ if (!isset($currentUser['department_id']) && isset($currentUser['id'])) {
     }
 }
 
-// Get files for a specific department and semester
-function getDepartmentFiles($pdo, $department, $semester = null) {
+// Get or create semester folder
+function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId) {
     try {
-        $query = "
-            SELECT f.*, fo.folder_name, u.full_name as uploader_name
-            FROM files f
-            JOIN folders fo ON f.folder_id = fo.id
-            JOIN users u ON f.uploaded_by = u.id
-            WHERE fo.department = ? AND f.is_deleted = 0
-        ";
+        $semesterName = ($semester === 'first') ? 'First Semester' : 'Second Semester';
+        $academicYear = date('Y') . '-' . (date('Y') + 1);
+        $folderName = $academicYear . ' - ' . $semesterName;
         
-        $params = [$department];
+        // Check if folder exists
+        $stmt = $pdo->prepare("
+            SELECT id FROM folders 
+            WHERE department_id = ? AND folder_name = ? AND is_deleted = 0
+        ");
+        $stmt->execute([$departmentId, $folderName]);
+        $folder = $stmt->fetch();
         
-        if ($semester) {
-            $query .= " AND fo.semester = ?";
-            $params[] = $semester;
+        if ($folder) {
+            return $folder['id'];
         }
         
-        $query .= " ORDER BY f.uploaded_at DESC";
+        // Create new folder
+        $stmt = $pdo->prepare("
+            INSERT INTO folders (folder_name, description, created_by, department_id, folder_path, folder_level, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ");
         
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
+        $description = "Academic files for {$semesterName} {$academicYear}";
+        $folderPath = "/departments/{$departmentId}/{$semester}";
+        
+        $stmt->execute([$folderName, $description, $userId, $departmentId, $folderPath, 1]);
+        return $pdo->lastInsertId();
+        
     } catch(Exception $e) {
-        error_log("Error fetching department folders: " . $e->getMessage());
-        return [];
+        error_log("Error creating semester folder: " . $e->getMessage());
+        return false;
     }
 }
 
@@ -184,6 +167,18 @@ function getFileIcon($filename) {
     
     return isset($iconMap[$ext]) ? $iconMap[$ext] : 'bxs-file';
 }
+
+// Get user initials helper function
+function getUserInitials($fullName) {
+    $names = explode(' ', $fullName);
+    $initials = '';
+    foreach($names as $name) {
+        if(!empty($name)) {
+            $initials .= strtoupper($name[0]);
+        }
+    }
+    return substr($initials, 0, 2);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -198,34 +193,35 @@ function getFileIcon($filename) {
     <link rel="stylesheet" href="../../assets/css/style.css">
     <style>
         .upload-btn {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 16px 28px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: 'Poppins', sans-serif;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-    position: relative;
-    overflow: hidden;
-}
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
 
-.upload-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.5s ease;
-}
+        .upload-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+        
         .upload-btn:hover::before {
             left: 100%;
         }
@@ -244,10 +240,6 @@ function getFileIcon($filename) {
             transition: transform 0.3s ease;
         }
 
-        .upload-btn .text {
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
         .department-tree {
             background: var(--grey);
             border-radius: 12px;
@@ -383,6 +375,8 @@ function getFileIcon($filename) {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 16px;
+            max-height: 400px;
+            overflow-y: auto;
         }
         
         .file-card {
@@ -494,7 +488,8 @@ function getFileIcon($filename) {
             color: #64748b;
             font-size: 18px;
         }
-         .profile img {
+        
+        .profile img {
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #e0e6ed;
@@ -505,7 +500,6 @@ function getFileIcon($filename) {
             border-color: var(--blue);
         }
         
-        /* Profile icon for users without department image */
         .profile-icon {
             width: 36px;
             height: 36px;
@@ -525,7 +519,6 @@ function getFileIcon($filename) {
             border-color: var(--blue);
         }
         
-        /* Department indicator */
         .profile {
             position: relative;
         }
@@ -544,6 +537,7 @@ function getFileIcon($filename) {
             min-width: 20px;
             text-align: center;
         }
+        
         @media (max-width: 768px) {
             .files-grid {
                 grid-template-columns: 1fr;
@@ -561,152 +555,153 @@ function getFileIcon($filename) {
     </style>
 </head>
 <body>
-<!-- Upload Modal -->
+    <!-- Upload Modal -->
     <div id="uploadModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; visibility: hidden; transition: all 0.3s ease;">
         <div id="modalContainer" style="background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); transform: scale(0.9) translateY(20px); transition: all 0.3s ease; font-family: 'Poppins', sans-serif;">
         
-        <!-- Modal Header -->
-        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 24px; border-radius: 16px 16px 0 0; position: relative; overflow: hidden; font-family: 'Poppins', sans-serif;">
-            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255, 255, 255, 0.1); border-radius: 50%;"></div>
-            <div style="position: absolute; bottom: -30px; left: -30px; width: 80px; height: 80px; background: rgba(255, 255, 255, 0.1); border-radius: 50%;"></div>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1; font-family: 'Poppins', sans-serif;">
-                <div style="font-family: 'Poppins', sans-serif;">
-                    <h2 style="margin: 0; font-size: 24px; font-weight: 600; margin-bottom: 4px; font-family: 'Poppins', sans-serif;">
-                        <i class='bx bxs-cloud-upload' style="margin-right: 8px; font-size: 28px;"></i>
-                        Upload Files
-                    </h2>
-                    <p style="margin: 0; opacity: 0.9; font-size: 14px; font-family: 'Poppins', sans-serif;">Share your documents with the department</p>
+            <!-- Modal Header -->
+            <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 24px; border-radius: 16px 16px 0 0; position: relative; overflow: hidden; font-family: 'Poppins', sans-serif;">
+                <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255, 255, 255, 0.1); border-radius: 50%;"></div>
+                <div style="position: absolute; bottom: -30px; left: -30px; width: 80px; height: 80px; background: rgba(255, 255, 255, 0.1); border-radius: 50%;"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 24px; font-weight: 600; margin-bottom: 4px;">
+                            <i class='bx bxs-cloud-upload' style="margin-right: 8px; font-size: 28px;"></i>
+                            Upload Files
+                        </h2>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Share your documents with the department</p>
+                    </div>
+                    <button onclick="closeUploadModal()" style="background: rgba(255, 255, 255, 0.2); border: none; border-radius: 8px; padding: 8px; color: white; cursor: pointer; transition: all 0.3s ease; font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
+                        <i class='bx bx-x'></i>
+                    </button>
                 </div>
-                <button onclick="closeUploadModal()" style="background: rgba(255, 255, 255, 0.2); border: none; border-radius: 8px; padding: 8px; color: white; cursor: pointer; transition: all 0.3s ease; font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif;" onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
-                    <i class='bx bx-x'></i>
-                </button>
             </div>
+
+            <!-- Modal Content -->
+            <form id="uploadForm" enctype="multipart/form-data" style="padding: 0;">
+                
+                <!-- Department Selection -->
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
+                        <i class='bx bxs-building' style="color: #10b981; margin-right: 8px;"></i>
+                        Select Department
+                    </label>
+                    <select id="department" name="department" required style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: white; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'" onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                        <option value="">Choose a department...</option>
+                        <?php foreach ($departments as $dept): ?>
+                        <option value="<?php echo $dept['id']; ?>"><?php echo htmlspecialchars($dept['department_name']) . ' (' . $dept['department_code'] . ')'; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Semester Selection -->
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
+                        <i class='bx bxs-calendar' style="color: #10b981; margin-right: 8px;"></i>
+                        Academic Semester
+                    </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
+                            <input type="radio" name="semester" value="first" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
+                            <div>
+                                <div style="font-weight: 600; color: #374151;">First Semester</div>
+                                <div style="font-size: 12px; color: #6b7280;">August - December</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
+                            <input type="radio" name="semester" value="second" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
+                            <div>
+                                <div style="font-weight: 600; color: #374151;">Second Semester</div>
+                                <div style="font-size: 12px; color: #6b7280;">January - May</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- File Upload Area -->
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
+                        <i class='bx bxs-file-plus' style="color: #10b981; margin-right: 8px;"></i>
+                        Upload Files
+                    </label>
+                    
+                    <div id="dropZone" style="border: 2px dashed #10b981; border-radius: 12px; padding: 40px 20px; text-align: center; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden;" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault(); this.style.borderColor='#059669'; this.style.background='#d1fae5';" ondragleave="this.style.borderColor='#10b981'; this.style.background='linear-gradient(135deg, #f0fdf4, #ecfdf5)';" ondrop="handleDrop(event)">
+                        <input type="file" id="fileInput" name="files[]" multiple accept="*" style="display: none;" onchange="handleFileSelect(this.files)">
+                        
+                        <div id="uploadPrompt">
+                            <i class='bx bxs-cloud-upload' style="font-size: 48px; color: #10b981; margin-bottom: 16px; display: block;"></i>
+                            <h3 style="margin: 0 0 8px 0; color: #065f46; font-size: 18px; font-weight: 600;">Drop files here or click to browse</h3>
+                            <p style="margin: 0; color: #059669; font-size: 14px; opacity: 0.8;">Support for PDF, DOC, XLS, PPT, Images and more</p>
+                            <div style="margin-top: 16px; display: inline-flex; align-items: center; background: rgba(16, 185, 129, 0.1); padding: 8px 16px; border-radius: 20px; font-size: 12px; color: #065f46; font-weight: 500;">
+                                <i class='bx bx-info-circle' style="margin-right: 6px;"></i>
+                                Max file size: 50MB per file
+                            </div>
+                        </div>
+                        
+                        <div id="filePreview" style="display: none; text-align: left;"></div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div id="uploadProgress" style="display: none; margin-top: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 14px; font-weight: 500; color: #374151;">Uploading files...</span>
+                            <span id="progressPercent" style="font-size: 14px; font-weight: 500; color: #10b981;">0%</span>
+                        </div>
+                        <div style="width: 100%; background: #f3f4f6; border-radius: 8px; height: 8px; overflow: hidden;">
+                            <div id="progressBar" style="width: 0%; background: linear-gradient(90deg, #10b981, #059669); height: 100%; border-radius: 8px; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Description -->
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
+                        <i class='bx bxs-note' style="color: #10b981; margin-right: 8px;"></i>
+                        Description (Optional)
+                    </label>
+                    <textarea id="fileDescription" name="description" placeholder="Add a description for your files..." style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; resize: vertical; min-height: 80px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'" onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'"></textarea>
+                </div>
+
+                <!-- File Tags -->
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
+                        <i class='bx bxs-tag' style="color: #10b981; margin-right: 8px;"></i>
+                        Tags
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                        <button type="button" onclick="addTag('Curriculum')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Curriculum</button>
+                        <button type="button" onclick="addTag('Research')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Research</button>
+                        <button type="button" onclick="addTag('Guidelines')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Guidelines</button>
+                        <button type="button" onclick="addTag('Reports')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Reports</button>
+                    </div>
+                    <div id="selectedTags" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;"></div>
+                    <input type="text" id="customTag" placeholder="Add custom tag..." style="width: 100%; padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'" onkeypress="if(event.key==='Enter') {event.preventDefault(); addCustomTag();}">
+                    <input type="hidden" id="tagsInput" name="tags" value="">
+                </div>
+
+                <!-- Modal Footer -->
+                <div style="padding: 24px; background: #f9fafb; border-radius: 0 0 16px 16px;">
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" onclick="closeUploadModal()" style="background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
+                            Cancel
+                        </button>
+                        <button type="submit" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                            <i class='bx bxs-cloud-upload' style="margin-right: 8px;"></i>
+                            Upload Files
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border-left: 4px solid #10b981;">
+                        <p style="margin: 0; font-size: 12px; color: #065f46; line-height: 1.4;">
+                            <i class='bx bx-shield-check' style="margin-right: 4px;"></i>
+                            Your files will be securely stored and organized by department and semester for easy access.
+                        </p>
+                    </div>
+                </div>
+            </form>
         </div>
-
-        <!-- Modal Content -->
-        <form id="uploadForm" style="padding: 0; font-family: 'Poppins', sans-serif;">
-            
-            <!-- Department Selection -->
-            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; font-family: 'Poppins', sans-serif;">
-                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px; font-family: 'Poppins', sans-serif;">
-                    <i class='bx bxs-building' style="color: #10b981; margin-right: 8px;"></i>
-                    Select Department
-                </label>
-                <select id="department" required style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: white; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;" onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'" onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
-                    <option value="">Choose a department...</option>
-                    <?php foreach ($departments as $code => $dept): ?>
-                    <option value="<?php echo $code; ?>"><?php echo htmlspecialchars($dept['name']) . ' (' . $code . ')'; ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <!-- Semester Selection -->
-            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; font-family: 'Poppins', sans-serif;">
-                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px; font-family: 'Poppins', sans-serif;">
-                    <i class='bx bxs-calendar' style="color: #10b981; margin-right: 8px;"></i>
-                    Academic Semester
-                </label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-family: 'Poppins', sans-serif;">
-                    <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white; font-family: 'Poppins', sans-serif;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
-                        <input type="radio" name="semester" value="first" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
-                        <div style="font-family: 'Poppins', sans-serif;">
-                            <div style="font-weight: 600; color: #374151; font-family: 'Poppins', sans-serif;">First Semester</div>
-                            <div style="font-size: 12px; color: #6b7280; font-family: 'Poppins', sans-serif;">August - December</div>
-                        </div>
-                    </label>
-                    <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white; font-family: 'Poppins', sans-serif;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
-                        <input type="radio" name="semester" value="second" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
-                        <div style="font-family: 'Poppins', sans-serif;">
-                            <div style="font-weight: 600; color: #374151; font-family: 'Poppins', sans-serif;">Second Semester</div>
-                            <div style="font-size: 12px; color: #6b7280; font-family: 'Poppins', sans-serif;">January - May</div>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- File Upload Area -->
-            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; font-family: 'Poppins', sans-serif;">
-                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px; font-family: 'Poppins', sans-serif;">
-                    <i class='bx bxs-file-plus' style="color: #10b981; margin-right: 8px;"></i>
-                    Upload Files
-                </label>
-                
-                <div id="dropZone" style="border: 2px dashed #10b981; border-radius: 12px; padding: 40px 20px; text-align: center; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; font-family: 'Poppins', sans-serif;" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault(); this.style.borderColor='#059669'; this.style.background='#d1fae5';" ondragleave="this.style.borderColor='#10b981'; this.style.background='linear-gradient(135deg, #f0fdf4, #ecfdf5)';" ondrop="handleDrop(event)">
-                    <input type="file" id="fileInput" multiple accept="*" style="display: none;" onchange="handleFileSelect(this.files)">
-                    
-                    <div id="uploadPrompt" style="font-family: 'Poppins', sans-serif;">
-                        <i class='bx bxs-cloud-upload' style="font-size: 48px; color: #10b981; margin-bottom: 16px; display: block;"></i>
-                        <h3 style="margin: 0 0 8px 0; color: #065f46; font-size: 18px; font-weight: 600; font-family: 'Poppins', sans-serif;">Drop files here or click to browse</h3>
-                        <p style="margin: 0; color: #059669; font-size: 14px; opacity: 0.8; font-family: 'Poppins', sans-serif;">Support for PDF, DOC, XLS, PPT, Images and more</p>
-                        <div style="margin-top: 16px; display: inline-flex; align-items: center; background: rgba(16, 185, 129, 0.1); padding: 8px 16px; border-radius: 20px; font-size: 12px; color: #065f46; font-weight: 500; font-family: 'Poppins', sans-serif;">
-                            <i class='bx bx-info-circle' style="margin-right: 6px;"></i>
-                            Max file size: 50MB per file
-                        </div>
-                    </div>
-                    
-                    <div id="filePreview" style="display: none; text-align: left; font-family: 'Poppins', sans-serif;"></div>
-                </div>
-                
-                <!-- Progress Bar -->
-                <div id="uploadProgress" style="display: none; margin-top: 16px; font-family: 'Poppins', sans-serif;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-family: 'Poppins', sans-serif;">
-                        <span style="font-size: 14px; font-weight: 500; color: #374151; font-family: 'Poppins', sans-serif;">Uploading files...</span>
-                        <span id="progressPercent" style="font-size: 14px; font-weight: 500; color: #10b981; font-family: 'Poppins', sans-serif;">0%</span>
-                    </div>
-                    <div style="width: 100%; background: #f3f4f6; border-radius: 8px; height: 8px; overflow: hidden;">
-                        <div id="progressBar" style="width: 0%; background: linear-gradient(90deg, #10b981, #059669); height: 100%; border-radius: 8px; transition: width 0.3s ease;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- File Description -->
-            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; font-family: 'Poppins', sans-serif;">
-                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px; font-family: 'Poppins', sans-serif;">
-                    <i class='bx bxs-note' style="color: #10b981; margin-right: 8px;"></i>
-                    Description (Optional)
-                </label>
-                <textarea id="fileDescription" placeholder="Add a description for your files..." style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; resize: vertical; min-height: 80px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'" onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'"></textarea>
-            </div>
-
-            <!-- File Tags -->
-            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; font-family: 'Poppins', sans-serif;">
-                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px; font-family: 'Poppins', sans-serif;">
-                    <i class='bx bxs-tag' style="color: #10b981; margin-right: 8px;"></i>
-                    Tags
-                </label>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-family: 'Poppins', sans-serif;">
-                    <button type="button" onclick="addTag('Curriculum')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Curriculum</button>
-                    <button type="button" onclick="addTag('Research')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Research</button>
-                    <button type="button" onclick="addTag('Guidelines')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Guidelines</button>
-                    <button type="button" onclick="addTag('Reports')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Reports</button>
-                </div>
-                <div id="selectedTags" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-family: 'Poppins', sans-serif;"></div>
-                <input type="text" id="customTag" placeholder="Add custom tag..." style="width: 100%; padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'" onkeypress="if(event.key==='Enter') {event.preventDefault(); addCustomTag();}">
-            </div>
-
-            <!-- Modal Footer -->
-            <div style="padding: 24px; background: #f9fafb; border-radius: 0 0 16px 16px; font-family: 'Poppins', sans-serif;">
-                <div style="display: flex; gap: 12px; justify-content: flex-end; font-family: 'Poppins', sans-serif;">
-                    <button type="button" onclick="closeUploadModal()" style="background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
-                        Cancel
-                    </button>
-                    <button type="submit" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; font-family: 'Poppins', sans-serif;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                        <i class='bx bxs-cloud-upload' style="margin-right: 8px;"></i>
-                        Upload Files
-                    </button>
-                </div>
-                
-                <div style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border-left: 4px solid #10b981; font-family: 'Poppins', sans-serif;">
-                    <p style="margin: 0; font-size: 12px; color: #065f46; line-height: 1.4; font-family: 'Poppins', sans-serif;">
-                        <i class='bx bx-shield-check' style="margin-right: 4px;"></i>
-                        Your files will be securely stored and organized by department and semester for easy access.
-                    </p>
-                </div>
-            </div>
-        </form>
     </div>
-</div>
 
     <!-- Sidebar -->
     <section id="sidebar">
@@ -763,12 +758,10 @@ function getFileIcon($filename) {
     </section>
 
     <!-- Content -->
-
     <section id="content">
         <!-- Navbar -->
         <nav>
             <i class='bx bx-menu'></i>
-            <a href="#" class="nav-link">Categories</a>
             <form action="#">
                 <div class="form-input">
                     <input type="search" placeholder="Search...">
@@ -781,12 +774,12 @@ function getFileIcon($filename) {
                 <i class='bx bxs-bell'></i>
                 <span class="num">8</span>
             </a>
-            <a href="#" class="profile" title="<?php echo htmlspecialchars($currentUser['full_name'] . ($departmentCode ? ' - ' . $departmentCode : '')); ?>">
+            <a href="#" class="profile" title="<?php echo htmlspecialchars($currentUser['name'] . ($departmentCode ? ' - ' . $departmentCode : '')); ?>">
                 <?php if ($departmentImage && file_exists($departmentImage)): ?>
                     <img src="<?php echo htmlspecialchars($departmentImage); ?>" alt="<?php echo htmlspecialchars($departmentCode . ' Profile'); ?>" style="width: 36px; height: 36px;">
                 <?php else: ?>
                     <div class="profile-icon">
-                        <?php echo getUserInitials($currentUser['full_name']); ?>
+                        <?php echo getUserInitials($currentUser['name']); ?>
                     </div>
                 <?php endif; ?>
             </a>
@@ -810,7 +803,7 @@ function getFileIcon($filename) {
                 <button onclick="openUploadModal()" class="upload-btn">
                     <i class='bx bxs-cloud-upload'></i>
                     <span class="text">Upload File</span>
-            </button>
+                </button>
             </div>
 
             <!-- Search Section -->
@@ -823,31 +816,32 @@ function getFileIcon($filename) {
 
             <!-- Department Tree -->
             <div class="department-tree">
-                <?php foreach ($departments as $code => $dept): ?>
-                    <div class="department-item" data-department="<?php echo $code; ?>">
-                        <div class="department-header" onclick="toggleDepartment('<?php echo $code; ?>')">
-                            <div class="department-icon" style="background-color: <?php echo $dept['color']; ?>">
-                                <i class='bx <?php echo $dept['icon']; ?>'></i>
+                <?php foreach ($departments as $dept): 
+                    $config = $departmentConfig[$dept['department_code']] ?? $departmentConfig['Others'];
+                ?>
+                    <div class="department-item" data-department="<?php echo $dept['id']; ?>">
+                        <div class="department-header" onclick="toggleDepartment('<?php echo $dept['id']; ?>')">
+                            <div class="department-icon" style="background-color: <?php echo $config['color']; ?>">
+                                <i class='bx <?php echo $config['icon']; ?>'></i>
                             </div>
                             <div class="department-info">
-                                <div class="department-name"><?php echo htmlspecialchars($dept['name']); ?></div>
-                                <div class="department-code"><?php echo $code; ?></div>
+                                <div class="department-name"><?php echo htmlspecialchars($dept['department_name']); ?></div>
+                                <div class="department-code"><?php echo $dept['department_code']; ?></div>
                             </div>
-                            <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $code; ?>"></i>
+                            <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $dept['id']; ?>"></i>
                         </div>
                         
-                        <div class="semester-content" id="content-<?php echo $code; ?>">
+                        <div class="semester-content" id="content-<?php echo $dept['id']; ?>">
                             <div class="semester-tabs">
-                                <button class="semester-tab active" onclick="showSemester('<?php echo $code; ?>', 'first')">
+                                <button class="semester-tab active" onclick="showSemester('<?php echo $dept['id']; ?>', 'first')">
                                     <i class='bx bxs-folder'></i> First Semester
                                 </button>
-                                <button class="semester-tab" onclick="showSemester('<?php echo $code; ?>', 'second')">
+                                <button class="semester-tab" onclick="showSemester('<?php echo $dept['id']; ?>', 'second')">
                                     <i class='bx bxs-folder'></i> Second Semester
                                 </button>
                             </div>
                             
-                            <div class="files-grid" id="files-<?php echo $code; ?>-first">
-                                <!-- First semester files will be loaded here -->
+                            <div class="files-grid" id="files-<?php echo $dept['id']; ?>-first">
                                 <div class="empty-state">
                                     <i class='bx bx-folder-open empty-icon'></i>
                                     <p>No files in First Semester</p>
@@ -855,8 +849,7 @@ function getFileIcon($filename) {
                                 </div>
                             </div>
                             
-                            <div class="files-grid" id="files-<?php echo $code; ?>-second" style="display: none;">
-                                <!-- Second semester files will be loaded here -->
+                            <div class="files-grid" id="files-<?php echo $dept['id']; ?>-second" style="display: none;">
                                 <div class="empty-state">
                                     <i class='bx bx-folder-open empty-icon'></i>
                                     <p>No files in Second Semester</p>
@@ -977,7 +970,11 @@ function getFileIcon($filename) {
                 'gif': 'bxs-file-image',
                 'txt': 'bxs-file-txt',
                 'zip': 'bxs-file-archive',
-                'rar': 'bxs-file-archive'
+                'rar': 'bxs-file-archive',
+                'mp4': 'bxs-videos',
+                'avi': 'bxs-videos',
+                'mp3': 'bxs-music',
+                'wav': 'bxs-music'
             };
             return iconMap[ext] || 'bxs-file';
         }
@@ -996,6 +993,7 @@ function getFileIcon($filename) {
             if (!selectedTags.includes(tag)) {
                 selectedTags.push(tag);
                 displaySelectedTags();
+                updateTagsInput();
             }
         }
 
@@ -1006,6 +1004,7 @@ function getFileIcon($filename) {
             if (tag && !selectedTags.includes(tag)) {
                 selectedTags.push(tag);
                 displaySelectedTags();
+                updateTagsInput();
                 input.value = '';
             }
         }
@@ -1031,6 +1030,12 @@ function getFileIcon($filename) {
         function removeTag(index) {
             selectedTags.splice(index, 1);
             displaySelectedTags();
+            updateTagsInput();
+        }
+
+        // Update hidden tags input
+        function updateTagsInput() {
+            document.getElementById('tagsInput').value = JSON.stringify(selectedTags);
         }
 
         // Reset form
@@ -1042,6 +1047,7 @@ function getFileIcon($filename) {
             document.getElementById('filePreview').style.display = 'none';
             document.getElementById('selectedTags').innerHTML = '';
             document.getElementById('uploadProgress').style.display = 'none';
+            updateTagsInput();
         }
 
         // Handle form submission
@@ -1068,7 +1074,7 @@ function getFileIcon($filename) {
             formData.append('tags', JSON.stringify(selectedTags));
             
             selectedFiles.forEach((file, index) => {
-                formData.append(`files[${index}]`, file);
+                formData.append('files[]', file);
             });
             
             // AJAX upload
@@ -1081,8 +1087,10 @@ function getFileIcon($filename) {
                 if (data.success) {
                     alert('Files uploaded successfully!');
                     closeUploadModal();
-                    // Refresh the department files if needed
-                    location.reload();
+                    // Refresh the specific department files
+                    if (data.departmentId) {
+                        loadDepartmentFiles(data.departmentId);
+                    }
                 } else {
                     alert('Upload failed: ' + data.message);
                 }
@@ -1132,7 +1140,7 @@ function getFileIcon($filename) {
             }
         });
 
-        // Sidebar functionality (same as dashboard)
+        // Sidebar functionality
         const allSideMenu = document.querySelectorAll('#sidebar .side-menu.top li a');
         allSideMenu.forEach(item=> {
             const li = item.parentElement;
@@ -1194,9 +1202,9 @@ function getFileIcon($filename) {
         })
 
         // Department tree functionality
-        function toggleDepartment(deptCode) {
-            const content = document.getElementById(`content-${deptCode}`);
-            const icon = document.getElementById(`icon-${deptCode}`);
+        function toggleDepartment(deptId) {
+            const content = document.getElementById(`content-${deptId}`);
+            const icon = document.getElementById(`icon-${deptId}`);
             const header = content.previousElementSibling;
             
             if (content.classList.contains('show')) {
@@ -1209,19 +1217,19 @@ function getFileIcon($filename) {
                 header.classList.add('active');
                 
                 // Load files for this department if not already loaded
-                loadDepartmentFiles(deptCode);
+                loadDepartmentFiles(deptId);
             }
         }
 
-        function showSemester(deptCode, semester) {
+        function showSemester(deptId, semester) {
             // Update tab active state
-            const tabs = document.querySelectorAll(`#content-${deptCode} .semester-tab`);
+            const tabs = document.querySelectorAll(`#content-${deptId} .semester-tab`);
             tabs.forEach(tab => tab.classList.remove('active'));
             event.target.classList.add('active');
             
             // Show/hide semester content
-            const firstSemester = document.getElementById(`files-${deptCode}-first`);
-            const secondSemester = document.getElementById(`files-${deptCode}-second`);
+            const firstSemester = document.getElementById(`files-${deptId}-first`);
+            const secondSemester = document.getElementById(`files-${deptId}-second`);
             
             if (semester === 'first') {
                 firstSemester.style.display = 'grid';
@@ -1232,52 +1240,31 @@ function getFileIcon($filename) {
             }
         }
 
-        function loadDepartmentFiles(deptCode) {
+        function loadDepartmentFiles(deptId) {
             // AJAX call to load files from database
             fetch('get_department_files.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ department: deptCode })
+                body: JSON.stringify({ department_id: deptId })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    renderFiles(deptCode, 'first', data.first_semester || []);
-                    renderFiles(deptCode, 'second', data.second_semester || []);
+                    renderFiles(deptId, 'first', data.first_semester || []);
+                    renderFiles(deptId, 'second', data.second_semester || []);
+                } else {
+                    console.error('Error loading files:', data.message);
                 }
             })
             .catch(error => {
                 console.error('Error loading files:', error);
-                // Fallback to sample data
-                const sampleFiles = {
-                    'TED': {
-                        'first': [
-                            { name: 'Curriculum_Guide_2024.pdf', size: '2.4 MB', uploader: 'Dr. Maria Santos', date: '2024-01-15', type: 'pdf' },
-                            { name: 'Teaching_Methods.docx', size: '1.8 MB', uploader: 'Prof. Juan Cruz', date: '2024-01-20', type: 'docx' }
-                        ],
-                        'second': [
-                            { name: 'Assessment_Tools.xlsx', size: '956 KB', uploader: 'Dr. Ana Garcia', date: '2024-06-10', type: 'xlsx' }
-                        ]
-                    },
-                    'MD': {
-                        'first': [
-                            { name: 'Medical_Guidelines_2024.pdf', size: '3.2 MB', uploader: 'Dr. Roberto Lopez', date: '2024-02-01', type: 'pdf' }
-                        ],
-                        'second': []
-                    }
-                };
-
-                if (sampleFiles[deptCode]) {
-                    renderFiles(deptCode, 'first', sampleFiles[deptCode]['first'] || []);
-                    renderFiles(deptCode, 'second', sampleFiles[deptCode]['second'] || []);
-                }
             });
         }
 
-        function renderFiles(deptCode, semester, files) {
-            const container = document.getElementById(`files-${deptCode}-${semester}`);
+        function renderFiles(deptId, semester, files) {
+            const container = document.getElementById(`files-${deptId}-${semester}`);
             
             if (files.length === 0) {
                 container.innerHTML = `
@@ -1292,24 +1279,28 @@ function getFileIcon($filename) {
             
             let html = '';
             files.forEach(file => {
-                const fileIcon = getFileIconClass(file.type);
+                const fileIcon = getFileIcon(file.file_name);
+                const fileSize = formatFileSize(parseInt(file.file_size));
+                const uploadDate = new Date(file.uploaded_at).toLocaleDateString();
+                
                 html += `
-                    <div class="file-card" onclick="downloadFile('${file.name}')">
+                    <div class="file-card" onclick="downloadFile('${file.id}', '${file.file_name}')">
                         <div class="file-header">
                             <div class="file-icon">
                                 <i class='bx ${fileIcon}'></i>
                             </div>
                             <div class="file-info">
-                                <div class="file-name">${file.name}</div>
+                                <div class="file-name">${file.original_name || file.file_name}</div>
                             </div>
                         </div>
                         <div class="file-meta">
-                            <span>${file.size}</span>
-                            <span>${formatDate(file.date)}</span>
+                            <span>${fileSize}</span>
+                            <span>${uploadDate}</span>
                         </div>
                         <div class="file-uploader">
-                            <i class='bx bx-user'></i> ${file.uploader}
+                            <i class='bx bx-user'></i> ${file.uploader_name}
                         </div>
+                        ${file.description ? `<div style="font-size: 12px; color: #6b7280; margin-top: 8px; padding: 8px; background: #f8fafc; border-radius: 4px;">${file.description}</div>` : ''}
                     </div>
                 `;
             });
@@ -1317,37 +1308,14 @@ function getFileIcon($filename) {
             container.innerHTML = html;
         }
 
-        function getFileIconClass(type) {
-            const iconMap = {
-                'pdf': 'bxs-file-pdf',
-                'doc': 'bxs-file-doc',
-                'docx': 'bxs-file-doc',
-                'xls': 'bxs-spreadsheet',
-                'xlsx': 'bxs-spreadsheet',
-                'ppt': 'bxs-file-blank',
-                'pptx': 'bxs-file-blank',
-                'jpg': 'bxs-file-image',
-                'jpeg': 'bxs-file-image',
-                'png': 'bxs-file-image',
-                'txt': 'bxs-file-txt',
-                'zip': 'bxs-file-archive'
-            };
-            
-            return iconMap[type] || 'bxs-file';
-        }
-
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric',
-                year: 'numeric'
-            });
-        }
-
-        function downloadFile(filename) {
-            // Implement file download functionality
-            alert(`Downloading: ${filename}`);
+        function downloadFile(fileId, fileName) {
+            // Create a temporary link to trigger download
+            const link = document.createElement('a');
+            link.href = `download_file.php?id=${fileId}`;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         // Search functionality
