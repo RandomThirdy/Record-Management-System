@@ -425,10 +425,6 @@ function formatFileSize($bytes, $precision = 2) {
                         </li>
                     </ul>
                 </div>
-                <a href="upload.php" class="btn-download">
-                    <i class='bx bxs-cloud-upload'></i>
-                    <span class="text">Upload Document</span>
-                </a>
             </div>
 
             <!-- Statistics Cards -->
