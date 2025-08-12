@@ -542,6 +542,7 @@ function formatFileSize($bytes, $precision = 2) {
             </div>
 
             <!-- Quick Actions for Missing Documents -->
+             
             <?php 
             $missingDocs = array_diff_key($requiredDocuments, $uploadedDocs);
             if (!empty($missingDocs)): 
