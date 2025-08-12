@@ -1,5 +1,5 @@
 <?php
-require_once '../../includes/config.php';
+require_once '../../../includes/config.php';
 
 // Set JSON response header
 header('Content-Type: application/json');

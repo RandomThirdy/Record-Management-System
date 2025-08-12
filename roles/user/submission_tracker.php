@@ -343,13 +343,13 @@ function formatFileSize($bytes, $precision = 2) {
             <li>
                 <a href="files.php">
                     <i class='bx bxs-file'></i>
-                    <span class="text">All Files</span>
+                    <span class="text">My Files</span>
                 </a>
             </li>
             <li>
                 <a href="folders.php">
                     <i class='bx bxs-folder'></i>
-                    <span class="text">All Folders</span>
+                    <span class="text">My Folders</span>
                 </a>
             </li>
             <li class="active">

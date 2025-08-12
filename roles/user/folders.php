@@ -24,53 +24,14 @@ if (!$currentUser['is_approved']) {
     exit();
 }
 
-// Get departments from database
-function getDepartments($pdo) {
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM departments WHERE is_active = 1 ORDER BY department_name");
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch(Exception $e) {
-        error_log("Error fetching departments: " . $e->getMessage());
-        return [];
-    }
-}
+// Get user's department ID - CRITICAL for filtering
+$userDepartmentId = null;
 
-$departments = getDepartments($pdo);
-
-// Department configuration with colors and icons
-$departmentConfig = [
-    'TED' => ['icon' => 'bxs-graduation', 'color' => '#f59e0b'],
-    'MD' => ['icon' => 'bxs-business', 'color' => '#1e40af'],
-    'FASD' => ['icon' => 'bx bx-water', 'color' => '#0284c7'],
-    'ASD' => ['icon' => 'bxs-palette', 'color' => '#d946ef'],
-    'ITD' => ['icon' => 'bxs-chip', 'color' => '#0f766e'],
-    'NSTP' => ['icon' => 'bxs-user-check', 'color' => '#22c55e'],
-    'Others' => ['icon' => 'bxs-file', 'color' => '#6b7280']
-];
-
-// Get department information for profile image - SAFE ACCESS
-$departmentImage = null;
-$departmentCode = null;
-
-// Check if department_id exists and is not null
+// First, try to get department_id from currentUser
 if (isset($currentUser['department_id']) && $currentUser['department_id']) {
-    try {
-        $stmt = $pdo->prepare("SELECT department_code FROM departments WHERE id = ?");
-        $stmt->execute([$currentUser['department_id']]);
-        $department = $stmt->fetch();
-        
-        if ($department) {
-            $departmentCode = $department['department_code'];
-            $departmentImage = "../../img/{$departmentCode}.jpg";
-        }
-    } catch(Exception $e) {
-        error_log("Department image error: " . $e->getMessage());
-    }
-}
-
-// If getCurrentUser() doesn't include department info, get it separately
-if (!isset($currentUser['department_id']) && isset($currentUser['id'])) {
+    $userDepartmentId = $currentUser['department_id'];
+} elseif (isset($currentUser['id'])) {
+    // If not available, fetch from database
     try {
         $stmt = $pdo->prepare("
             SELECT u.department_id, d.department_code, d.department_name 
@@ -82,24 +43,87 @@ if (!isset($currentUser['department_id']) && isset($currentUser['id'])) {
         $userDept = $stmt->fetch();
         
         if ($userDept && $userDept['department_id']) {
+            $userDepartmentId = $userDept['department_id'];
             $currentUser['department_id'] = $userDept['department_id'];
             $currentUser['department_name'] = $userDept['department_name'];
-            $departmentCode = $userDept['department_code'];
-            $departmentImage = "../../img/{$departmentCode}.jpg";
         }
     } catch(Exception $e) {
         error_log("Department fetch error: " . $e->getMessage());
     }
 }
 
-// Get or create semester folder
-function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId) {
+// If user has no department assigned, restrict access
+if (!$userDepartmentId) {
+    session_unset();
+    session_destroy();
+    header('Location: login.php?error=no_department_assigned');
+    exit();
+}
+
+// Get departments from database - ONLY user's department
+function getUserDepartment($pdo, $departmentId) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM departments WHERE id = ? AND is_active = 1");
+        $stmt->execute([$departmentId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch(Exception $e) {
+        error_log("Error fetching user department: " . $e->getMessage());
+        return null;
+    }
+}
+
+// Get all departments for upload modal (optional - you might want to restrict this too)
+function getAllDepartments($pdo) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM departments WHERE is_active = 1 ORDER BY department_name");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch(Exception $e) {
+        error_log("Error fetching departments: " . $e->getMessage());
+        return [];
+    }
+}
+
+// Get ONLY user's department
+$userDepartment = getUserDepartment($pdo, $userDepartmentId);
+$departments = $userDepartment ? [$userDepartment] : []; // Show only user's department
+
+// For upload modal, decide if you want to show all departments or just user's department
+$allDepartments = getAllDepartments($pdo); // Change this if you want to restrict upload too
+
+// Department configuration with colors and icons
+$departmentConfig = [
+    'TED' => ['icon' => 'bxs-graduation', 'color' => '#f59e0b'],
+    'MD' => ['icon' => 'bxs-business', 'color' => '#1e40af'],
+    'FASD' => ['icon' => 'bx bx-water', 'color' => '#0284c7'],
+    'ASD' => ['icon' => 'bxs-palette', 'color' => '#d946ef'],
+    'ITD' => ['icon' => 'bxs-chip', 'color' => '#0f766e'],
+    'NSTP' => ['icon' => 'bxs-user-check', 'color' => '#22c55e'],
+    'OTHR' => ['icon' => 'bxs-file', 'color' => '#6b7280']
+];
+
+// Get department information for profile image - SAFE ACCESS
+$departmentImage = null;
+$departmentCode = null;
+
+if ($userDepartment) {
+    $departmentCode = $userDepartment['department_code'];
+    $departmentImage = "../../img/{$departmentCode}.jpg";
+}
+
+// Get or create semester folder - ONLY for user's department
+function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId, $userDepartmentId) {
+    // Security check: ensure user can only create folders in their own department
+    if ($departmentId != $userDepartmentId) {
+        throw new Exception("Access denied: Cannot create folder in different department");
+    }
+    
     try {
         $semesterName = ($semester === 'first') ? 'First Semester' : 'Second Semester';
         $academicYear = date('Y') . '-' . (date('Y') + 1);
         $folderName = $academicYear . ' - ' . $semesterName;
         
-        // Check if folder exists
+        // Check if folder exists - ONLY in user's department
         $stmt = $pdo->prepare("
             SELECT id FROM folders 
             WHERE department_id = ? AND folder_name = ? AND is_deleted = 0
@@ -111,7 +135,7 @@ function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId) {
             return $folder['id'];
         }
         
-        // Create new folder
+        // Create new folder - ONLY in user's department
         $stmt = $pdo->prepare("
             INSERT INTO folders (folder_name, description, created_by, department_id, folder_path, folder_level, created_at) 
             VALUES (?, ?, ?, ?, ?, ?, NOW())
@@ -185,13 +209,42 @@ function getUserInitials($fullName) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Department Folders - CVSU Naic</title>
+    <title><?php echo $userDepartment ? $userDepartment['department_name'] : 'Department'; ?> Folders - CVSU Naic</title>
     <link href='https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css' rel='stylesheet'>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../assets/css/style.css">
     <style>
+        .department-notice {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        
+        .department-notice i {
+            font-size: 32px;
+            opacity: 0.9;
+        }
+        
+        .department-notice-content h3 {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .department-notice-content p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
         .upload-btn {
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
@@ -551,6 +604,11 @@ function getUserInitials($fullName) {
             .department-name {
                 font-size: 14px;
             }
+            
+            .department-notice {
+                flex-direction: column;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -570,7 +628,7 @@ function getUserInitials($fullName) {
                             <i class='bx bxs-cloud-upload' style="margin-right: 8px; font-size: 28px;"></i>
                             Upload Files
                         </h2>
-                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Share your documents with the department</p>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Share your documents with your department</p>
                     </div>
                     <button onclick="closeUploadModal()" style="background: rgba(255, 255, 255, 0.2); border: none; border-radius: 8px; padding: 8px; color: white; cursor: pointer; transition: all 0.3s ease; font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
                         <i class='bx bx-x'></i>
@@ -581,20 +639,19 @@ function getUserInitials($fullName) {
             <!-- Modal Content -->
             <form id="uploadForm" enctype="multipart/form-data" style="padding: 0;">
                 
-                <!-- Department Selection -->
+                <!-- Department Selection - Pre-filled with user's department -->
                 <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
                         <i class='bx bxs-building' style="color: #10b981; margin-right: 8px;"></i>
-                        Select Department
+                        Your Department
                     </label>
-                    <select id="department" name="department" required style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: white; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'" onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
-                        <option value="">Choose a department...</option>
-                        <?php foreach ($departments as $dept): ?>
-                        <option value="<?php echo $dept['id']; ?>"><?php echo htmlspecialchars($dept['department_name']) . ' (' . $dept['department_code'] . ')'; ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb; color: #374151; font-size: 14px;">
+                        <?php echo $userDepartment ? htmlspecialchars($userDepartment['department_name']) . ' (' . $userDepartment['department_code'] . ')' : 'No Department Assigned'; ?>
+                    </div>
+                    <input type="hidden" name="department" value="<?php echo $userDepartmentId; ?>">
                 </div>
 
+                <!-- Rest of the modal content remains the same as original -->
                 <!-- Semester Selection -->
                 <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
@@ -695,7 +752,7 @@ function getUserInitials($fullName) {
                     <div style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border-left: 4px solid #10b981;">
                         <p style="margin: 0; font-size: 12px; color: #065f46; line-height: 1.4;">
                             <i class='bx bx-shield-check' style="margin-right: 4px;"></i>
-                            Your files will be securely stored and organized by department and semester for easy access.
+                            Your files will be securely stored and organized in your department for easy access.
                         </p>
                     </div>
                 </div>
@@ -719,13 +776,13 @@ function getUserInitials($fullName) {
             <li>
                 <a href="folders.php">
                     <i class='bx bxs-file'></i>
-                    <span class="text">All Files</span>
+                    <span class="text">My Files</span>
                 </a>
             </li>
             <li class="active">
                 <a href="folders.php">
                     <i class='bx bxs-folder'></i>
-                    <span class="text">All Folders</span>
+                    <span class="text">My Folders</span>
                 </a>
             </li>
             <li>
@@ -785,8 +842,7 @@ function getUserInitials($fullName) {
             </a>
         </nav>
 
-        <!-- Main Content -->
-        <main>
+       <main>
             <div class="head-title">
                 <div class="left">
                     <h1>Department Folders</h1>
@@ -809,66 +865,75 @@ function getUserInitials($fullName) {
             <!-- Search Section -->
             <div class="search-section">
                 <div class="search-bar">
-                    <input type="text" placeholder="Search across all departments..." id="departmentSearch">
+                    <input type="text" placeholder="Search in your department..." id="departmentSearch">
                     <i class='bx bx-search'></i>
                 </div>
             </div>
 
-            <!-- Department Tree -->
+            <!-- Department Tree - Only user's department -->
             <div class="department-tree">
-                <?php foreach ($departments as $dept): 
-                    $config = $departmentConfig[$dept['department_code']] ?? $departmentConfig['Others'];
-                ?>
-                    <div class="department-item" data-department="<?php echo $dept['id']; ?>">
-                        <div class="department-header" onclick="toggleDepartment('<?php echo $dept['id']; ?>')">
-                            <div class="department-icon" style="background-color: <?php echo $config['color']; ?>">
-                                <i class='bx <?php echo $config['icon']; ?>'></i>
-                            </div>
-                            <div class="department-info">
-                                <div class="department-name"><?php echo htmlspecialchars($dept['department_name']); ?></div>
-                                <div class="department-code"><?php echo $dept['department_code']; ?></div>
-                            </div>
-                            <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $dept['id']; ?>"></i>
-                        </div>
-                        
-                        <div class="semester-content" id="content-<?php echo $dept['id']; ?>">
-                            <div class="semester-tabs">
-                                <button class="semester-tab active" onclick="showSemester('<?php echo $dept['id']; ?>', 'first')">
-                                    <i class='bx bxs-folder'></i> First Semester
-                                </button>
-                                <button class="semester-tab" onclick="showSemester('<?php echo $dept['id']; ?>', 'second')">
-                                    <i class='bx bxs-folder'></i> Second Semester
-                                </button>
+                <?php if (!empty($departments)): ?>
+                    <?php foreach ($departments as $dept): 
+                        $config = $departmentConfig[$dept['department_code']] ?? $departmentConfig['OTHR'];
+                    ?>
+                        <div class="department-item" data-department="<?php echo $dept['id']; ?>">
+                            <div class="department-header" onclick="toggleDepartment('<?php echo $dept['id']; ?>')">
+                                <div class="department-icon" style="background-color: <?php echo $config['color']; ?>">
+                                    <i class='bx <?php echo $config['icon']; ?>'></i>
+                                </div>
+                                <div class="department-info">
+                                    <div class="department-name"><?php echo htmlspecialchars($dept['department_name']); ?></div>
+                                    <div class="department-code"><?php echo $dept['department_code']; ?></div>
+                                </div>
+                                <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $dept['id']; ?>"></i>
                             </div>
                             
-                            <div class="files-grid" id="files-<?php echo $dept['id']; ?>-first">
-                                <div class="empty-state">
-                                    <i class='bx bx-folder-open empty-icon'></i>
-                                    <p>No files in First Semester</p>
-                                    <small>Files uploaded to this semester will appear here</small>
+                            <div class="semester-content" id="content-<?php echo $dept['id']; ?>">
+                                <div class="semester-tabs">
+                                    <button class="semester-tab active" onclick="showSemester('<?php echo $dept['id']; ?>', 'first')">
+                                        <i class='bx bxs-folder'></i> First Semester
+                                    </button>
+                                    <button class="semester-tab" onclick="showSemester('<?php echo $dept['id']; ?>', 'second')">
+                                        <i class='bx bxs-folder'></i> Second Semester
+                                    </button>
                                 </div>
-                            </div>
-                            
-                            <div class="files-grid" id="files-<?php echo $dept['id']; ?>-second" style="display: none;">
-                                <div class="empty-state">
-                                    <i class='bx bx-folder-open empty-icon'></i>
-                                    <p>No files in Second Semester</p>
-                                    <small>Files uploaded to this semester will appear here</small>
+                                
+                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-first">
+                                    <div class="empty-state">
+                                        <i class='bx bx-folder-open empty-icon'></i>
+                                        <p>No files in First Semester</p>
+                                        <small>Files uploaded to this semester will appear here</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-second" style="display: none;">
+                                    <div class="empty-state">
+                                        <i class='bx bx-folder-open empty-icon'></i>
+                                        <p>No files in Second Semester</p>
+                                        <small>Files uploaded to this semester will appear here</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="empty-state" style="padding: 60px 20px;">
+                        <i class='bx bx-error-circle empty-icon' style="color: #ef4444;"></i>
+                        <h3 style="color: #374151; margin-bottom: 8px;">No Department Assigned</h3>
+                        <p>Please contact your administrator to assign you to a department.</p>
                     </div>
-                <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </main>
     </section>
 
     <script>
-        // Modal functionality
+        // Global variables
         let selectedFiles = [];
         let selectedTags = [];
+        const userDepartmentId = <?php echo json_encode($userDepartmentId); ?>;
 
-        // Open Modal
+        // Modal functionality
         function openUploadModal() {
             const modal = document.getElementById('uploadModal');
             const container = document.getElementById('modalContainer');
@@ -880,7 +945,6 @@ function getUserInitials($fullName) {
             document.body.style.overflow = 'hidden';
         }
 
-        // Close Modal
         function closeUploadModal() {
             const modal = document.getElementById('uploadModal');
             const container = document.getElementById('modalContainer');
@@ -893,13 +957,11 @@ function getUserInitials($fullName) {
             }, 300);
         }
 
-        // Handle file selection
         function handleFileSelect(files) {
             selectedFiles = Array.from(files);
             displayFilePreview();
         }
 
-        // Handle drag and drop
         function handleDrop(event) {
             event.preventDefault();
             const dropZone = event.target;
@@ -911,7 +973,6 @@ function getUserInitials($fullName) {
             displayFilePreview();
         }
 
-        // Display file preview
         function displayFilePreview() {
             const uploadPrompt = document.getElementById('uploadPrompt');
             const filePreview = document.getElementById('filePreview');
@@ -947,13 +1008,11 @@ function getUserInitials($fullName) {
             }
         }
 
-        // Remove file
         function removeFile(index) {
             selectedFiles.splice(index, 1);
             displayFilePreview();
         }
 
-        // Get file icon
         function getFileIcon(filename) {
             const ext = filename.split('.').pop().toLowerCase();
             const iconMap = {
@@ -979,7 +1038,6 @@ function getUserInitials($fullName) {
             return iconMap[ext] || 'bxs-file';
         }
 
-        // Format file size
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -988,7 +1046,6 @@ function getUserInitials($fullName) {
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // Add tag
         function addTag(tag) {
             if (!selectedTags.includes(tag)) {
                 selectedTags.push(tag);
@@ -997,7 +1054,6 @@ function getUserInitials($fullName) {
             }
         }
 
-        // Add custom tag
         function addCustomTag() {
             const input = document.getElementById('customTag');
             const tag = input.value.trim();
@@ -1009,7 +1065,6 @@ function getUserInitials($fullName) {
             }
         }
 
-        // Display selected tags
         function displaySelectedTags() {
             const container = document.getElementById('selectedTags');
             let html = '';
@@ -1026,19 +1081,16 @@ function getUserInitials($fullName) {
             container.innerHTML = html;
         }
 
-        // Remove tag
         function removeTag(index) {
             selectedTags.splice(index, 1);
             displaySelectedTags();
             updateTagsInput();
         }
 
-        // Update hidden tags input
         function updateTagsInput() {
             document.getElementById('tagsInput').value = JSON.stringify(selectedTags);
         }
 
-        // Reset form
         function resetForm() {
             selectedFiles = [];
             selectedTags = [];
@@ -1054,21 +1106,19 @@ function getUserInitials($fullName) {
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const department = document.getElementById('department').value;
             const semester = document.querySelector('input[name="semester"]:checked')?.value;
             const description = document.getElementById('fileDescription').value;
             
-            if (!department || !semester || selectedFiles.length === 0) {
-                alert('Please fill in all required fields and select at least one file.');
+            if (!semester || selectedFiles.length === 0) {
+                alert('Please select a semester and at least one file.');
                 return;
             }
             
             // Show progress
             document.getElementById('uploadProgress').style.display = 'block';
             
-            // Create FormData for AJAX upload
             const formData = new FormData();
-            formData.append('department', department);
+            formData.append('department', userDepartmentId); 
             formData.append('semester', semester);
             formData.append('description', description);
             formData.append('tags', JSON.stringify(selectedTags));
@@ -1077,8 +1127,7 @@ function getUserInitials($fullName) {
                 formData.append('files[]', file);
             });
             
-            // AJAX upload
-            fetch('upload_handler.php', {
+            fetch('handlers/upload_handler.php', {
                 method: 'POST',
                 body: formData
             })
@@ -1087,10 +1136,7 @@ function getUserInitials($fullName) {
                 if (data.success) {
                     alert('Files uploaded successfully!');
                     closeUploadModal();
-                    // Refresh the specific department files
-                    if (data.departmentId) {
-                        loadDepartmentFiles(data.departmentId);
-                    }
+                    loadDepartmentFiles(userDepartmentId);
                 } else {
                     alert('Upload failed: ' + data.message);
                 }
@@ -1107,7 +1153,6 @@ function getUserInitials($fullName) {
             simulateUpload();
         });
 
-        // Simulate upload progress
         function simulateUpload() {
             const progressBar = document.getElementById('progressBar');
             const progressPercent = document.getElementById('progressPercent');
@@ -1241,13 +1286,22 @@ function getUserInitials($fullName) {
         }
 
         function loadDepartmentFiles(deptId) {
+            // Security check: Only load files for user's department
+            if (deptId != userDepartmentId) {
+                console.error('Access denied: Cannot load files from different department');
+                return;
+            }
+            
             // AJAX call to load files from database
-            fetch('get_department_files.php', {
+            fetch('handlers/department_files.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ department_id: deptId })
+                body: JSON.stringify({ 
+                    department_id: deptId,
+                    user_department_id: userDepartmentId // Send user's department for validation
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -1256,6 +1310,9 @@ function getUserInitials($fullName) {
                     renderFiles(deptId, 'second', data.second_semester || []);
                 } else {
                     console.error('Error loading files:', data.message);
+                    if (data.message.includes('Access denied')) {
+                        alert('Access denied: You can only view files from your department.');
+                    }
                 }
             })
             .catch(error => {
@@ -1311,21 +1368,34 @@ function getUserInitials($fullName) {
         function downloadFile(fileId, fileName) {
             // Create a temporary link to trigger download
             const link = document.createElement('a');
-            link.href = `download_file.php?id=${fileId}`;
+            link.href = `handlers/download_file.php?id=${fileId}&dept_id=${userDepartmentId}`;
             link.download = fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // Search functionality
+        // Search functionality - only within user's department
         document.getElementById('departmentSearch').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
             
-            // Filter department items based on search
+            // Since we only show user's department, search within file cards
+            document.querySelectorAll('.file-card').forEach(card => {
+                const fileName = card.querySelector('.file-name')?.textContent.toLowerCase() || '';
+                const uploader = card.querySelector('.file-uploader')?.textContent.toLowerCase() || '';
+                const description = card.querySelector('div[style*="background: #f8fafc"]')?.textContent.toLowerCase() || '';
+                
+                if (fileName.includes(searchTerm) || uploader.includes(searchTerm) || description.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Also filter department items (though we only have one)
             document.querySelectorAll('.department-item').forEach(item => {
-                const deptName = item.querySelector('.department-name').textContent.toLowerCase();
-                const deptCode = item.querySelector('.department-code').textContent.toLowerCase();
+                const deptName = item.querySelector('.department-name')?.textContent.toLowerCase() || '';
+                const deptCode = item.querySelector('.department-code')?.textContent.toLowerCase() || '';
                 
                 if (deptName.includes(searchTerm) || deptCode.includes(searchTerm)) {
                     item.style.display = 'block';
@@ -1333,6 +1403,16 @@ function getUserInitials($fullName) {
                     item.style.display = 'none';
                 }
             });
+        });
+
+        // Auto-load user's department files on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (userDepartmentId) {
+                // Auto-expand user's department
+                setTimeout(() => {
+                    toggleDepartment(userDepartmentId);
+                }, 500);
+            }
         });
     </script>
 </body>
