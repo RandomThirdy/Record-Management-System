@@ -1,6 +1,4 @@
-<?php
-// ODCI/roles/user/components/sidebar_folders.php
-?>
+
 <!-- Sidebar -->
 <section id="sidebar">
     <a href="#" class="brand">
