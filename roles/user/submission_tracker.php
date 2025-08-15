@@ -149,45 +149,8 @@ function formatFileSize($bytes, $precision = 2) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/submission_tracker.css">
     <style>
-
-        /* Additional styles for profile image */
-        .profile img {
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #e0e6ed;
-            transition: border-color 0.3s ease;
-        }
-        
-        .profile:hover img {
-            border-color: var(--blue);
-        }
-        
-        /* Profile icon for users without department image */
-        .profile-icon {
-            width: 36px;
-            height: 36px;
-            background: var(--blue);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            border: 2px solid #e0e6ed;
-            transition: border-color 0.3s ease;
-        }
-        
-        .profile:hover .profile-icon {
-            border-color: var(--blue);
-        }
-        
-        /* Department indicator */
-        .profile {
-            position: relative;
-        }
-        
         <?php if ($departmentCode): ?>
         .profile::after {
             content: '<?php echo $departmentCode; ?>';
@@ -204,211 +167,14 @@ function formatFileSize($bytes, $precision = 2) {
             text-align: center;
         }
         <?php endif; ?>
-  
-        .submission-status {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-        
-        .status-uploaded {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status-not-uploaded {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background-color: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #28a745, #20c997);
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        .document-count {
-            background-color: #007bff;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            margin-left: 8px;
-        }
-        
-        .submission-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        
-        .submission-table th,
-        .submission-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .submission-table th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
-        
-        .submission-table tr:hover {
-            background-color: #f5f5f5;
-        }
-        
-        .upload-link {
-            color: #007bff;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        
-        .upload-link:hover {
-            text-decoration: underline;
-        }
-        
-        .last-upload {
-            font-size: 12px;
-            color: #6c757d;
-            margin-top: 4px;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        
-        .stat-card i {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-        
-        .stat-card h3 {
-            margin: 10px 0 5px 0;
-            font-size: 1.8em;
-        }
-        
-        .stat-card p {
-            color: #666;
-            margin: 0;
-        }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <section id="sidebar">
-        <a href="#" class="brand">
-            <img src="../../img/cvsu-logo.png" alt="Logo" style="width: 30px; height: 30px;">
-            <span class="text">ODCI</span>
-        </a>
-        <ul class="side-menu top">
-            <li>
-                <a href="dashboard.php">
-                    <i class='bx bxs-dashboard'></i>
-                    <span class="text">Dashboard</span>
-                </a>
-            </li>
-            <li>
-                <a href="files.php">
-                    <i class='bx bxs-file'></i>
-                    <span class="text">My Files</span>
-                </a>
-            </li>
-            <li>
-                <a href="folders.php">
-                    <i class='bx bxs-folder'></i>
-                    <span class="text">My Folders</span>
-                </a>
-            </li>
-            <li class="active">
-                <a href="submission_tracker.php">
-                    <i class='bx bxs-check-square'></i>
-                    <span class="text">Submission Tracker</span>
-                </a>
-            </li>
-             <li>
-                <a href="folders.php">
-                    <i class='bx bxs-folder'></i>
-                    <span class="text">Reports</span>
-                </a>
-            </li>
-        </ul>
-        <ul class="side-menu">
-            <li>
-                <a href="settings.php">
-                    <i class='bx bxs-cog'></i>
-                    <span class="text">Settings</span>
-                </a>
-            </li>
-            <li>
-                <a href="../../logout.php" class="logout">
-                    <i class='bx bxs-log-out-circle'></i>
-                    <span class="text">Logout</span>
-                </a>
-            </li>
-        </ul>
-    </section>
+    <?php include 'components/submission_tracker/sidebar.php'; ?>
 
     <!-- Content -->
- <!-- Content -->
     <section id="content">
-        <!-- Navbar -->
-        <nav>
-            <i class='bx bx-menu'></i>
-            <form action="#">
-                <div class="form-input">
-                    <input type="search" placeholder="Search...">
-                    <button type="submit" class="search-btn"><i class='bx bx-search'></i></button>
-                </div>
-            </form>
-            <input type="checkbox" id="switch-mode" hidden>
-            <label for="switch-mode" class="switch-mode"></label>
-            <a href="#" class="notification">
-                <i class='bx bxs-bell'></i>
-                <span class="num">8</span>
-            </a>
-            <a href="#" class="profile" title="<?php echo htmlspecialchars($currentUser['full_name'] . ($departmentCode ? ' - ' . $departmentCode : '')); ?>">
-                <?php if ($departmentImage && file_exists($departmentImage)): ?>
-                    <img src="<?php echo htmlspecialchars($departmentImage); ?>" alt="<?php echo htmlspecialchars($departmentCode . ' Profile'); ?>" style="width: 36px; height: 36px;">
-                <?php else: ?>
-                    <div class="profile-icon">
-                        <?php echo getUserInitials($currentUser['full_name']); ?>
-                    </div>
-                <?php endif; ?>
-            </a>
-        </nav>
+        <?php include 'components/submission_tracker/navbar.php'; ?>
 
         <!-- Main Content -->
         <main>
@@ -542,7 +308,6 @@ function formatFileSize($bytes, $precision = 2) {
             </div>
 
             <!-- Quick Actions for Missing Documents -->
-             
             <?php 
             $missingDocs = array_diff_key($requiredDocuments, $uploadedDocs);
             if (!empty($missingDocs)): 
@@ -602,7 +367,6 @@ function formatFileSize($bytes, $precision = 2) {
                                 <span style="color: #666;">Document still needs to be submitted</span>
                             </div>
                         </div>
-                    </div>
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
                             <p style="color: #666; margin: 0; font-size: 14px; text-align: center;">
                                 <strong>Note:</strong> Make sure to upload all required documents to maintain compliance. 
@@ -615,133 +379,6 @@ function formatFileSize($bytes, $precision = 2) {
         </main>
     </section>
 
-    <script>
-        const allSideMenu = document.querySelectorAll('#sidebar .side-menu.top li a');
-
-        allSideMenu.forEach(item=> {
-            const li = item.parentElement;
-
-            item.addEventListener('click', function () {
-                allSideMenu.forEach(i=> {
-                    i.parentElement.classList.remove('active');
-                })
-                li.classList.add('active');
-            })
-        });
-
-        // Toggle sidebar
-        const menuBar = document.querySelector('#content nav .bx.bx-menu');
-        const sidebar = document.getElementById('sidebar');
-
-        menuBar.addEventListener('click', function () {
-            sidebar.classList.toggle('hide');
-        })
-
-        // Search functionality
-        const searchButton = document.querySelector('#content nav form .form-input button');
-        const searchButtonIcon = document.querySelector('#content nav form .form-input button .bx');
-        const searchForm = document.querySelector('#content nav form');
-
-        searchButton.addEventListener('click', function (e) {
-            if(window.innerWidth < 576) {
-                e.preventDefault();
-                searchForm.classList.toggle('show');
-                if(searchForm.classList.contains('show')) {
-                    searchButtonIcon.classList.replace('bx-search', 'bx-x');
-                } else {
-                    searchButtonIcon.classList.replace('bx-x', 'bx-search');
-                }
-            }
-        })
-
-        // Search documents in table
-        const searchInput = document.querySelector('#content nav form .form-input input');
-        const tableRows = document.querySelectorAll('.submission-table tbody tr');
-
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            
-            tableRows.forEach(row => {
-                const docType = row.cells[0].textContent.toLowerCase();
-                const description = row.cells[1].textContent.toLowerCase();
-                
-                if (docType.includes(searchTerm) || description.includes(searchTerm)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        });
-
-        if(window.innerWidth < 768) {
-            sidebar.classList.add('hide');
-        } else if(window.innerWidth > 576) {
-            searchButtonIcon.classList.replace('bx-x', 'bx-search');
-            searchForm.classList.remove('show');
-        }
-
-        window.addEventListener('resize', function () {
-            if(this.innerWidth > 576) {
-                searchButtonIcon.classList.replace('bx-x', 'bx-search');
-                searchForm.classList.remove('show');
-            }
-        })
-
-        // Dark mode toggle
-        const switchMode = document.getElementById('switch-mode');
-
-        switchMode.addEventListener('change', function () {
-            if(this.checked) {
-                document.body.classList.add('dark');
-            } else {
-                document.body.classList.remove('dark');
-            }
-        })
-
-        // Auto-refresh page every 5 minutes to update latest uploads
-        setTimeout(function() {
-            location.reload();
-        }, 300000); // 5 minutes
-
-        // Add click event to refresh button
-        const refreshBtn = document.querySelector('.head i.bx-refresh');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', function() {
-                location.reload();
-            });
-        }
-
-        // Filter functionality
-        const filterBtn = document.querySelector('.head i.bx-filter');
-        if (filterBtn) {
-            filterBtn.addEventListener('click', function() {
-                const filterOptions = ['All', 'Uploaded', 'Not Uploaded'];
-                const selectedFilter = prompt('Filter documents by:\n\n1. All\n2. Uploaded\n3. Not Uploaded\n\nEnter option number (1-3):');
-                
-                if (selectedFilter && selectedFilter >= 1 && selectedFilter <= 3) {
-                    filterDocuments(filterOptions[selectedFilter - 1]);
-                }
-            });
-        }
-
-        function filterDocuments(filter) {
-            tableRows.forEach(row => {
-                const statusCell = row.cells[2];
-                const isUploaded = statusCell.textContent.includes('Uploaded') && !statusCell.textContent.includes('Not Uploaded');
-                
-                switch(filter) {
-                    case 'All':
-                        row.style.display = '';
-                        break;
-                    case 'Uploaded':
-                        row.style.display = isUploaded ? '' : 'none';
-                        break;
-                    case 'Not Uploaded':
-                        row.style.display = !isUploaded ? '' : 'none';
-                        break;
-                }
-            });
-        }
-    </script>
+    <script src="assets/js/submission_tracker.js"></script>
 </body>
 </html>
