@@ -681,6 +681,11 @@ async function loadComments(postId) {
                     container.appendChild(createCommentElement(comment));
                 });
             }
+            
+            // Update comment count with server data if available
+            if (data.total_comments !== undefined) {
+                updateCommentCount(postId, data.total_comments);
+            }
         } else {
             if (container) {
                 container.innerHTML = '<p style="color: var(--red-primary); text-align: center; padding: 20px;">Error loading comments</p>';
@@ -695,6 +700,39 @@ async function loadComments(postId) {
         if (loadingDiv) loadingDiv.style.display = 'none';
     }
 }
+
+function updateCommentCount(postId, commentCount) {
+    const postElement = document.querySelector(`[data-post-id="${postId}"]`);
+    if (!postElement) return;
+
+    const statsDiv = postElement.querySelector('.post-stats');
+    if (!statsDiv) return;
+
+    let commentCountElement = null;
+    
+    // Find existing comment count element
+    const spans = statsDiv.querySelectorAll('span');
+    spans.forEach(span => {
+        if (span.innerHTML.includes('bx-message')) {
+            commentCountElement = span;
+        }
+    });
+    
+    // Update or create comment count element
+    if (commentCount > 0) {
+        if (commentCountElement) {
+            commentCountElement.innerHTML = `<i class='bx bx-message'></i> ${commentCount}`;
+        } else {
+            statsDiv.insertAdjacentHTML('beforeend', `<span><i class='bx bx-message'></i> ${commentCount}</span>`);
+        }
+    } else {
+        // Remove comment count if no comments
+        if (commentCountElement) {
+            commentCountElement.remove();
+        }
+    }
+}
+
 
 // Create comment element
 function createCommentElement(comment) {
@@ -751,31 +789,9 @@ async function addComment(postId) {
         
         if (result.success) {
             input.value = '';
+            // Just reload comments - this will get the correct count from server
             await loadComments(postId);
-            
-            // Update comment count in post
-            const postElement = document.querySelector(`[data-post-id="${postId}"]`);
-            if (postElement) {
-                const statsDiv = postElement.querySelector('.post-stats');
-                let commentCountElement = null;
-                
-                // Find existing comment count element
-                if (statsDiv) {
-                    const spans = statsDiv.querySelectorAll('span');
-                    spans.forEach(span => {
-                        if (span.innerHTML.includes('bx-message')) {
-                            commentCountElement = span;
-                        }
-                    });
-                }
-                
-                if (commentCountElement) {
-                    const currentCount = parseInt(commentCountElement.textContent.match(/\d+/)?.[0] || 0);
-                    commentCountElement.innerHTML = `<i class='bx bx-message'></i> ${currentCount + 1}`;
-                } else if (statsDiv) {
-                    statsDiv.insertAdjacentHTML('beforeend', `<span><i class='bx bx-message'></i> 1</span>`);
-                }
-            }
+            // Don't manually increment the count here - let the server handle it
         } else {
             showNotification(result.message || 'Error adding comment', 'error');
         }

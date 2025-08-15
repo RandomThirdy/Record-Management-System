@@ -1,31 +1,54 @@
 <?php
 require_once '../../../includes/config.php';
 require_once '../../../includes/auth_check.php';
-require_once '../assets/script/social_feed-script';
+require_once '../assets/script/social_feed-script.php';
 
 header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+    exit;
+}
 
 try {
     $postId = intval($_GET['post_id'] ?? 0);
     $limit = intval($_GET['limit'] ?? 20);
     $offset = intval($_GET['offset'] ?? 0);
-    $userId = $_SESSION['user_id'];
-    
+
     if (!$postId) {
-        echo json_encode(['success' => false, 'message' => 'Post ID required']);
+        echo json_encode(['success' => false, 'message' => 'Post ID is required']);
         exit;
     }
-    
+
+    // Verify post exists and user can view it
+    $stmt = $pdo->prepare("SELECT id FROM posts WHERE id = ? AND is_deleted = 0");
+    $stmt->execute([$postId]);
+    $post = $stmt->fetch();
+
+    if (!$post) {
+        echo json_encode(['success' => false, 'message' => 'Post not found']);
+        exit;
+    }
+
+    // Get comments using the CommentManager
     $comments = getPostComments($pdo, $postId, $limit, $offset);
-    
-    // Add user_liked field for each comment
+
+    // Get total comment count for this post
+    $stmt = $pdo->prepare("SELECT comment_count FROM posts WHERE id = ?");
+    $stmt->execute([$postId]);
+    $postData = $stmt->fetch();
+    $totalComments = $postData ? $postData['comment_count'] : 0;
+
+    // Check if user liked each comment
+    $userId = $_SESSION['user_id'];
     foreach ($comments as &$comment) {
+        // Check if user liked this comment
         $stmt = $pdo->prepare("SELECT id FROM post_likes WHERE comment_id = ? AND user_id = ?");
         $stmt->execute([$comment['id'], $userId]);
         $comment['user_liked'] = $stmt->fetch() ? true : false;
-        
-        // Add user_liked field for replies
-        if (isset($comment['replies'])) {
+
+        // Also check replies for likes
+        if (isset($comment['replies']) && is_array($comment['replies'])) {
             foreach ($comment['replies'] as &$reply) {
                 $stmt = $pdo->prepare("SELECT id FROM post_likes WHERE comment_id = ? AND user_id = ?");
                 $stmt->execute([$reply['id'], $userId]);
@@ -33,13 +56,15 @@ try {
             }
         }
     }
-    
+
     echo json_encode([
         'success' => true,
-        'comments' => $comments
+        'comments' => $comments,
+        'total_comments' => $totalComments,
+        'has_more' => count($comments) === $limit
     ]);
-    
-} catch(Exception $e) {
+
+} catch (Exception $e) {
     error_log("Get comments error: " . $e->getMessage());
     echo json_encode([
         'success' => false,

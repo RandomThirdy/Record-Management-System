@@ -1,7 +1,7 @@
 <?php
 require_once '../../../includes/config.php';
 require_once '../../../includes/auth_check.php';
-require_once '../social_feed-script.php';
+require_once '../assets/script/social_feed-script.php';
 
 header('Content-Type: application/json');
 
@@ -37,16 +37,17 @@ try {
         INSERT INTO post_comments (post_id, user_id, parent_comment_id, content) 
         VALUES (?, ?, ?, ?)
     ");
-    
+
     $result = $stmt->execute([$postId, $userId, $parentCommentId, $content]);
-    
+
     if ($result) {
         $commentId = $pdo->lastInsertId();
-        
-        // Update post comment count
-        $stmt = $pdo->prepare("UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?");
-        $stmt->execute([$postId]);
-        
+
+        // REMOVED: Don't manually increment comment_count
+        // Let the database calculate it dynamically from actual comments
+        // $stmt = $pdo->prepare("UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?");
+        // $stmt->execute([$postId]);
+
         // Log activity
         logActivity($pdo, $userId, 'add_comment', 'comment', $commentId, 'Added comment to post', [
             'post_id' => $postId,
@@ -63,22 +64,28 @@ try {
             $stmt = $pdo->prepare("SELECT user_id FROM post_comments WHERE id = ?");
             $stmt->execute([$parentCommentId]);
             $parentComment = $stmt->fetch();
-            
             if ($parentComment && $parentComment['user_id'] != $userId) {
                 sendReplyNotification($pdo, $postId, $commentId, $userId, $parentComment['user_id']);
             }
         }
         
+        // Get the actual current comment count
+        $stmt = $pdo->prepare("SELECT COUNT(*) as actual_count FROM post_comments WHERE post_id = ? AND is_deleted = 0");
+        $stmt->execute([$postId]);
+        $countResult = $stmt->fetch();
+        $actualCount = $countResult['actual_count'];
+        
         echo json_encode([
             'success' => true,
             'message' => 'Comment added successfully',
-            'comment_id' => $commentId
+            'comment_id' => $commentId,
+            'actual_comment_count' => $actualCount
         ]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to add comment']);
     }
-    
-} catch(Exception $e) {
+
+} catch (Exception $e) {
     error_log("Add comment error: " . $e->getMessage());
     echo json_encode([
         'success' => false,

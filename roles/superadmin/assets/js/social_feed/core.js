@@ -1,6 +1,3 @@
-// social-feed-core.js
-// Core module for social feed functionality
-
 class SocialFeedCore {
     constructor() {
         this.currentFilter = 'all';
@@ -217,7 +214,23 @@ class SocialFeedCore {
         
         try {
             const response = await fetch(`api/get_posts.php?filter=${this.currentFilter}&page=${page}&limit=10`);
-            const data = await response.json();
+            
+            // Log the response for debugging
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            const responseText = await response.text();
+            console.log('Raw response:', responseText);
+            
+            // Try to parse as JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (jsonError) {
+                console.error('JSON Parse Error:', jsonError);
+                console.error('Response was:', responseText);
+                throw new Error(`Server returned invalid JSON. Response: ${responseText.substring(0, 200)}...`);
+            }
             
             if (data.success) {
                 this.handlePostsLoaded(data.posts, page);
@@ -226,7 +239,7 @@ class SocialFeedCore {
             }
         } catch (error) {
             console.error('Error loading posts:', error);
-            this.showError('Error loading posts');
+            this.showError(`Error loading posts: ${error.message}`);
         } finally {
             this.isLoading = false;
         }

@@ -1,22 +1,18 @@
 <?php
 require_once '../../includes/config.php';
 
-// Check if user is logged in
 if (!isLoggedIn()) {
     header('Location: login.php');
     exit();
 }
 
-// Get current user information
 $currentUser = getCurrentUser($pdo);
 
 if (!$currentUser) {
-    // User not found, logout
     header('Location: logout.php');
     exit();
 }
 
-// Check if user is approved
 if (!$currentUser['is_approved']) {
     session_unset();
     session_destroy();
@@ -25,33 +21,49 @@ if (!$currentUser['is_approved']) {
 }
 
 $success_message = '';
-$error_message = '';
+$error_message   = '';
 
-   // Get department information for profile image - SAFE ACCESS
 $departmentImage = null;
-$departmentCode = null;
+$departmentCode  = null;
 
-// Check if department_id exists and is not null
-if (isset($currentUser['department_id']) && $currentUser['department_id']) {
+if (!empty($currentUser['department_id'])) {
     try {
-        $stmt = $pdo->prepare("SELECT department_code FROM departments WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT department_code, department_name FROM departments WHERE id = ?");
         $stmt->execute([$currentUser['department_id']]);
         $department = $stmt->fetch();
-        
+
         if ($department) {
             $departmentCode = $department['department_code'];
             $departmentImage = "../../img/{$departmentCode}.jpg";
+            $currentUser['department_name'] = $department['department_name'] ?? null;
         }
-    } catch(Exception $e) {
-        error_log("Department image error: " . $e->getMessage());
+    } catch (Exception $e) {
+        error_log("Department fetch error: " . $e->getMessage());
+    }
+} elseif (isset($currentUser['id'])) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT u.department_id, d.department_code, d.department_name 
+            FROM users u 
+            LEFT JOIN departments d ON u.department_id = d.id 
+            WHERE u.id = ?
+        ");
+        $stmt->execute([$currentUser['id']]);
+        $userDept = $stmt->fetch();
+
+        if ($userDept && $userDept['department_id']) {
+            $currentUser['department_id']   = $userDept['department_id'];
+            $currentUser['department_name'] = $userDept['department_name'];
+            $departmentCode                 = $userDept['department_code'];
+            $departmentImage                 = "../../img/{$departmentCode}.jpg";
+        }
+    } catch (Exception $e) {
+        error_log("Department fetch error: " . $e->getMessage());
     }
 }
 
-
-// Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['update_profile'])) {
-        // Update profile information
         try {
             $stmt = $pdo->prepare("UPDATE users SET full_name = ?, employee_id = ?, position = ?, phone = ? WHERE id = ?");
             $stmt->execute([
@@ -62,15 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $currentUser['id']
             ]);
             $success_message = 'Profile updated successfully!';
-            // Refresh user data
             $currentUser = getCurrentUser($pdo);
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             $error_message = 'Error updating profile: ' . $e->getMessage();
         }
     }
-    
+
     if (isset($_POST['change_password'])) {
-        // Change password
         if ($_POST['new_password'] === $_POST['confirm_password']) {
             if (password_verify($_POST['current_password'], $currentUser['password'])) {
                 try {
@@ -78,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
                     $stmt->execute([$hashedPassword, $currentUser['id']]);
                     $success_message = 'Password changed successfully!';
-                } catch(Exception $e) {
+                } catch (Exception $e) {
                     $error_message = 'Error changing password: ' . $e->getMessage();
                 }
             } else {
@@ -88,9 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error_message = 'New passwords do not match!';
         }
     }
-    
+
     if (isset($_POST['update_preferences'])) {
-        // Update user preferences
         try {
             $stmt = $pdo->prepare("UPDATE users SET email_notifications = ?, dark_mode = ? WHERE id = ?");
             $stmt->execute([
@@ -99,25 +108,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $currentUser['id']
             ]);
             $success_message = 'Preferences updated successfully!';
-            // Refresh user data
             $currentUser = getCurrentUser($pdo);
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             $error_message = 'Error updating preferences: ' . $e->getMessage();
         }
     }
-    
+
     if (isset($_POST['request_deletion'])) {
-        // Request account deletion (requires admin approval)
         try {
             $stmt = $pdo->prepare("INSERT INTO account_deletion_requests (user_id, reason, requested_at, status) VALUES (?, ?, NOW(), 'pending')");
             $stmt->execute([$currentUser['id'], $_POST['deletion_reason']]);
             $success_message = 'Account deletion request submitted. A super admin will review your request.';
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             $error_message = 'Error submitting deletion request: ' . $e->getMessage();
         }
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -150,12 +158,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
-    <?php include 'components/sidebar/settings.php'; ?>
+    <?php include 'components/sidebar.html'; ?>
 
     <!-- Content -->
   
     <section id="content">
-        <?php include 'components/navbar/settings.php'; ?>
+        <?php include 'components/navbar.html'; ?>
 
         <!-- Main Content -->
         <main>

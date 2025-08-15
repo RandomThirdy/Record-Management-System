@@ -278,11 +278,11 @@ function getFileTypeIcon($fileType) {
     <?php endif; ?>
 </head>
 <body>
-    <?php include 'components/sidebar/dashboard.php'; ?>
+    <?php include 'components/sidebar.html'; ?>
 
     <!-- Content -->
     <section id="content">
-        <?php include 'components/navbar/dashboard.php'; ?>
+        <?php include 'components/navbar.html'; ?>
 
         <!-- Main Content -->
         <main>

@@ -1,7 +1,7 @@
 <?php
-require_once '../../../includes/config.php';
 require_once '../../../includes/auth_check.php';
-require_once '../assets/script/social_feed-script';
+require_once '../../../includes/config.php';
+require_once '../assets/script/social_feed-script.php';
 
 header('Content-Type: application/json');
 
@@ -31,63 +31,80 @@ try {
             break;
 
         case 'department':
-            $whereConditions[] = "(p.visibility = 'department' AND JSON_CONTAINS(p.target_departments, CAST(? AS JSON)))";
-            $params[] = $departmentId;
+            $whereConditions[] = "(p.visibility = 'department' AND JSON_CONTAINS(p.target_departments, ?))";
+            $params[] = '"' . $departmentId . '"';
             break;
 
         case 'pinned':
             $whereConditions[] = "p.is_pinned = 1";
             break;
 
-        case 'trending':
-            $whereConditions[] = "p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-            break;
-
         default: // all posts
             $whereConditions[] = "(
                 p.visibility = 'public' OR
                 p.user_id = ? OR
-                (p.visibility = 'department' AND JSON_CONTAINS(p.target_departments, CAST(? AS JSON))) OR
-                (p.visibility = 'custom' AND JSON_CONTAINS(p.target_users, CAST(? AS JSON)))
+                (p.visibility = 'department' AND JSON_CONTAINS(p.target_departments, ?)) OR
+                (p.visibility = 'custom' AND JSON_CONTAINS(p.target_users, ?))
             )";
-            $params = array_merge($params, [$userId, $departmentId, $userId]);
+            $params = array_merge($params, [$userId, '"' . $departmentId . '"', '"' . $userId . '"']);
     }
 
     $whereClause = implode(' AND ', $whereConditions);
 
-    // Order by
-    $orderBy = $filter === 'trending'
-        ? "(p.like_count * 2 + p.comment_count * 3 + p.view_count * 0.1) DESC, p.created_at DESC"
-        : "p.is_pinned DESC, p.created_at DESC";
+    // Simple order by - pinned posts first, then by creation date
+    $orderBy = "p.is_pinned DESC, p.created_at DESC";
 
     $query = "
         SELECT p.*, u.username, u.name, u.mi, u.surname,
                CONCAT(u.name, ' ', IFNULL(CONCAT(u.mi, '. '), ''), u.surname) as author_full_name,
                u.profile_image, u.position, u.role, d.department_code, d.department_name,
-               EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) as user_liked
+               EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) as user_liked,
+               (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id AND pc.is_deleted = 0) as comment_count,
+               (SELECT COUNT(*) FROM post_views pv WHERE pv.post_id = p.id) as view_count
         FROM posts p
         LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN departments d ON u.department_id = d.id
         WHERE {$whereClause}
         ORDER BY {$orderBy}
-        LIMIT ? OFFSET ?
     ";
 
-    $allParams = array_merge([$userId], $params, [$limit, $offset]);
-    $stmt = $pdo->prepare($query);
+    // Build final query with LIMIT and OFFSET directly in SQL to avoid parameter issues
+    $finalQuery = $query . " LIMIT {$limit} OFFSET {$offset}";
+
+    $allParams = array_merge([$userId], $params);
+    $stmt = $pdo->prepare($finalQuery);
     $stmt->execute($allParams);
     $posts = $stmt->fetchAll();
 
-    // Get media for each post
+    // Process each post
     foreach ($posts as &$post) {
+        // Get media for each post
         $post['media'] = getPostMedia($pdo, $post['id']);
 
-        // Mark as viewed
-        markPostAsViewed($pdo, $post['id'], $userId);
+        // Track view if user hasn't viewed this post before
+        try {
+            $viewStmt = $pdo->prepare("
+                INSERT IGNORE INTO post_views (post_id, user_id, viewed_at, ip_address, user_agent) 
+                VALUES (?, ?, NOW(), ?, ?)
+            ");
+            $viewStmt->execute([
+                $post['id'],
+                $userId,
+                $_SERVER['REMOTE_ADDR'] ?? null,
+                $_SERVER['HTTP_USER_AGENT'] ?? null
+            ]);
+        } catch (Exception $e) {
+            // Ignore duplicate entry errors
+            if (strpos($e->getMessage(), 'Duplicate entry') === false) {
+                error_log("View tracking error for post {$post['id']}: " . $e->getMessage());
+            }
+        }
 
-        // Update view count
-        $stmt = $pdo->prepare("UPDATE posts SET view_count = view_count + 1 WHERE id = ?");
-        $stmt->execute([$post['id']]);
+        // Ensure counts are integers
+        $post['like_count'] = (int) $post['like_count'];
+        $post['comment_count'] = (int) $post['comment_count'];
+        $post['view_count'] = (int) $post['view_count'];
+        $post['share_count'] = (int) $post['share_count'];
     }
 
     echo json_encode([
