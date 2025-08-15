@@ -1,6 +1,3 @@
-<?php
-// ODCI/roles/user/components/navbar_folders.php
-?>
 <!-- Navbar -->
 <nav>
     <i class='bx bx-menu'></i>
