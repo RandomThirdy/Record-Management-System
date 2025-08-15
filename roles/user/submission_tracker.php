@@ -170,11 +170,11 @@ function formatFileSize($bytes, $precision = 2) {
     </style>
 </head>
 <body>
-    <?php include 'components/submission_tracker/sidebar.php'; ?>
+    <?php include 'components/sidebar/submission_tracker.php'; ?>
 
     <!-- Content -->
     <section id="content">
-        <?php include 'components/submission_tracker/navbar.php'; ?>
+        <?php include 'components/navbar/submission_tracker.php'; ?>
 
         <!-- Main Content -->
         <main>

@@ -150,13 +150,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
-    <?php include 'components/settings/sidebar.php'; ?>
+    <?php include 'components/sidebar/settings.php'; ?>
 
     <!-- Content -->
   
     <section id="content">
-        <?php include 'components/settings/navbar.php'; ?>
-        
+        <?php include 'components/navbar/settings.php'; ?>
+
         <!-- Main Content -->
         <main>
             <div class="head-title">

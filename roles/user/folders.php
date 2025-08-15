@@ -380,11 +380,11 @@ function getUserInitials($fullName) {
         </div>
     </div>
 
-    <?php include 'components/folders/sidebar.php'; ?>
+    <?php include 'components/sidebar/folders.php'; ?>
 
     <!-- Content -->
     <section id="content">
-        <?php include 'components/folders/navbar.php'; ?>
+        <?php include 'components/navbar/folders.php'; ?>
 
         <main>
             <div class="head-title">
