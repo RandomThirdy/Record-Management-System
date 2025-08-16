@@ -1,4 +1,5 @@
 <?php
+// ODCI/roles/user/handlers/upload_handler.php
 require_once '../../../includes/config.php';
 
 // Set JSON response header
@@ -18,17 +19,48 @@ if (!$currentUser || !$currentUser['is_approved']) {
     exit();
 }
 
+// Get user's department ID for security check
+$userDepartmentId = null;
+if (isset($currentUser['department_id']) && $currentUser['department_id']) {
+    $userDepartmentId = $currentUser['department_id'];
+} elseif (isset($currentUser['id'])) {
+    try {
+        $stmt = $pdo->prepare("SELECT department_id FROM users WHERE id = ?");
+        $stmt->execute([$currentUser['id']]);
+        $user = $stmt->fetch();
+        if ($user && $user['department_id']) {
+            $userDepartmentId = $user['department_id'];
+        }
+    } catch(Exception $e) {
+        error_log("Department fetch error: " . $e->getMessage());
+    }
+}
+
+if (!$userDepartmentId) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'No department assigned']);
+    exit();
+}
+
 try {
     // Validate input
-    if (!isset($_POST['department']) || !isset($_POST['semester']) || !isset($_FILES['files'])) {
+    if (!isset($_POST['department']) || !isset($_POST['category']) || !isset($_POST['semester']) || !isset($_FILES['files'])) {
         echo json_encode(['success' => false, 'message' => 'Missing required fields']);
         exit();
     }
 
     $departmentId = (int)$_POST['department'];
+    $category = $_POST['category'];
     $semester = $_POST['semester'];
     $description = $_POST['description'] ?? '';
     $tags = isset($_POST['tags']) ? json_decode($_POST['tags'], true) : [];
+    
+    // SECURITY CHECK: User can only upload to their own department
+    if ($departmentId != $userDepartmentId) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied: Can only upload to your department']);
+        exit();
+    }
     
     // Validate department exists
     $stmt = $pdo->prepare("SELECT id, department_name FROM departments WHERE id = ? AND is_active = 1");
@@ -46,15 +78,28 @@ try {
         exit();
     }
 
-    // Create or get semester folder
-    $folderId = getOrCreateSemesterFolder($pdo, $departmentId, $semester, $currentUser['id']);
+    // Validate category
+    $validCategories = [
+        'ipcr_accomplishment', 'ipcr_target', 'workload', 'course_syllabus',
+        'syllabus_acceptance', 'exam', 'tos', 'class_record', 'grading_sheet',
+        'attendance_sheet', 'stakeholder_feedback', 'consultation', 'lecture',
+        'activities', 'exam_acknowledgement', 'consultation_log'
+    ];
+    
+    if (!in_array($category, $validCategories)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid category']);
+        exit();
+    }
+
+    // Create or get category folder for the specific semester
+    $folderId = getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $currentUser['id'], $userDepartmentId);
     if (!$folderId) {
-        echo json_encode(['success' => false, 'message' => 'Failed to create folder']);
+        echo json_encode(['success' => false, 'message' => 'Failed to create category folder']);
         exit();
     }
 
     // Create upload directory if it doesn't exist
-    $uploadDir = "../../uploads/departments/" . $departmentId . "/" . $semester . "/";
+    $uploadDir = "../../uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/";
     if (!is_dir($uploadDir)) {
         if (!mkdir($uploadDir, 0755, true)) {
             echo json_encode(['success' => false, 'message' => 'Failed to create upload directory']);
@@ -72,6 +117,12 @@ try {
             $fileSize = $_FILES['files']['size'][$key];
             $fileType = $_FILES['files']['type'][$key];
             
+            // Validate file size (50MB max)
+            if ($fileSize > 50 * 1024 * 1024) {
+                $errors[] = "File too large: " . $originalName . " (Max 50MB)";
+                continue;
+            }
+            
             // Get file extension
             $fileExtension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
             
@@ -84,16 +135,38 @@ try {
                 // Calculate file hash for duplicate detection
                 $fileHash = hash_file('sha256', $filePath);
                 
+                // Check for duplicates
+                $stmt = $pdo->prepare("
+                    SELECT f.id, f.original_name 
+                    FROM files f 
+                    INNER JOIN folders fo ON f.folder_id = fo.id
+                    WHERE f.file_hash = ? AND fo.department_id = ? AND fo.category = ? AND f.is_deleted = 0
+                ");
+                $stmt->execute([$fileHash, $departmentId, $category]);
+                $duplicate = $stmt->fetch();
+                
+                if ($duplicate) {
+                    unlink($filePath); // Remove the uploaded duplicate
+                    $errors[] = "Duplicate file: " . $originalName . " (already exists as " . $duplicate['original_name'] . ")";
+                    continue;
+                }
+                
+                // Detect MIME type properly
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $detectedMimeType = finfo_file($finfo, $filePath);
+                finfo_close($finfo);
+                $mimeType = $detectedMimeType ?: $fileType;
+                
                 // Insert file record into database
                 $stmt = $pdo->prepare("
                     INSERT INTO files (
                         file_name, original_name, file_path, file_size, file_type, 
                         mime_type, file_extension, uploaded_by, folder_id, 
-                        file_hash, tags, description, uploaded_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                        file_hash, tags, description, uploaded_at, download_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
                 ");
                 
-                $relativePath = "uploads/departments/" . $departmentId . "/" . $semester . "/" . $fileName;
+                $relativePath = "uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/" . $fileName;
                 $tagsJson = !empty($tags) ? json_encode($tags) : null;
                 
                 $stmt->execute([
@@ -102,7 +175,7 @@ try {
                     $relativePath,
                     $fileSize,
                     $fileType,
-                    $fileType,
+                    $mimeType,
                     $fileExtension,
                     $currentUser['id'],
                     $folderId,
@@ -114,7 +187,9 @@ try {
                 $uploadedFiles[] = [
                     'id' => $pdo->lastInsertId(),
                     'name' => $originalName,
-                    'size' => $fileSize
+                    'size' => $fileSize,
+                    'category' => $category,
+                    'semester' => $semester
                 ];
 
                 // Update folder file count and size
@@ -124,16 +199,30 @@ try {
                 $errors[] = "Failed to upload: " . $originalName;
             }
         } else {
-            $errors[] = "Upload error for: " . $originalName . " (Error code: " . $_FILES['files']['error'][$key] . ")";
+            $uploadErrorMessages = [
+                UPLOAD_ERR_INI_SIZE => 'File too large (server limit)',
+                UPLOAD_ERR_FORM_SIZE => 'File too large (form limit)',
+                UPLOAD_ERR_PARTIAL => 'File partially uploaded',
+                UPLOAD_ERR_NO_FILE => 'No file uploaded',
+                UPLOAD_ERR_NO_TMP_DIR => 'No temporary directory',
+                UPLOAD_ERR_CANT_WRITE => 'Cannot write to disk',
+                UPLOAD_ERR_EXTENSION => 'Upload blocked by extension'
+            ];
+            
+            $errorCode = $_FILES['files']['error'][$key];
+            $errorMessage = $uploadErrorMessages[$errorCode] ?? 'Unknown upload error';
+            $errors[] = "Upload error for: " . $originalName . " (" . $errorMessage . ")";
         }
     }
 
     if (!empty($uploadedFiles)) {
         $response = [
             'success' => true,
-            'message' => count($uploadedFiles) . ' files uploaded successfully',
+            'message' => count($uploadedFiles) . ' files uploaded successfully to ' . ucfirst(str_replace('_', ' ', $category)) . ' - ' . ucfirst($semester) . ' Semester',
             'uploaded_files' => $uploadedFiles,
-            'departmentId' => $departmentId
+            'departmentId' => $departmentId,
+            'category' => $category,
+            'semester' => $semester
         ];
         
         if (!empty($errors)) {
@@ -144,7 +233,7 @@ try {
     } else {
         echo json_encode([
             'success' => false,
-            'message' => 'No files were uploaded',
+            'message' => 'No files were uploaded successfully',
             'errors' => $errors
         ]);
     }
@@ -153,7 +242,7 @@ try {
     error_log("Upload error: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'An error occurred during upload'
+        'message' => 'An error occurred during upload: ' . $e->getMessage()
     ]);
 }
 
@@ -173,49 +262,78 @@ function updateFolderStats($pdo, $folderId) {
     }
 }
 
-// Helper function to get or create semester folder (already defined in main file)
-function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId) {
+// Helper function to get or create category folder
+function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $userId, $userDepartmentId) {
+    // Security check: ensure user can only create folders in their own department
+    if ($departmentId != $userDepartmentId) {
+        throw new Exception("Access denied: Cannot create folder in different department");
+    }
+    
     try {
         $semesterName = ($semester === 'first') ? 'First Semester' : 'Second Semester';
         $academicYear = date('Y') . '-' . (date('Y') + 1);
         $folderName = $academicYear . ' - ' . $semesterName;
         
-        // Check if folder exists
+        // Check if folder exists for this category and semester
         $stmt = $pdo->prepare("
             SELECT id FROM folders 
-            WHERE department_id = ? AND folder_name = ? AND is_deleted = 0
+            WHERE department_id = ? 
+            AND folder_name = ? 
+            AND category = ? 
+            AND is_deleted = 0
         ");
-        $stmt->execute([$departmentId, $folderName]);
+        $stmt->execute([$departmentId, $folderName, $category]);
         $folder = $stmt->fetch();
         
         if ($folder) {
             return $folder['id'];
         }
         
-        // Create new folder
+        // Create new category folder
         $stmt = $pdo->prepare("
             INSERT INTO folders (
-                folder_name, description, created_by, department_id, 
+                folder_name, description, created_by, department_id, category, 
                 folder_path, folder_level, created_at, file_count, folder_size
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), 0, 0)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0)
         ");
         
-        $description = "Academic files for {$semesterName} {$academicYear}";
-        $folderPath = "/departments/{$departmentId}/{$semester}";
+        $categoryNames = [
+            'ipcr_accomplishment' => 'IPCR Accomplishment',
+            'ipcr_target' => 'IPCR Target',
+            'workload' => 'Workload',
+            'course_syllabus' => 'Course Syllabus',
+            'syllabus_acceptance' => 'Course Syllabus Acceptance Form',
+            'exam' => 'Exam',
+            'tos' => 'TOS',
+            'class_record' => 'Class Record',
+            'grading_sheet' => 'Grading Sheet',
+            'attendance_sheet' => 'Attendance Sheet',
+            'stakeholder_feedback' => 'Stakeholder\'s Feedback Form w/ Summary',
+            'consultation' => 'Consultation',
+            'lecture' => 'Lecture',
+            'activities' => 'Activities',
+            'exam_acknowledgement' => 'CEIT-QF-03 Discussion of Examination Acknowledgement Receipt Form',
+            'consultation_log' => 'Consultation Log Sheet Form'
+        ];
+        
+        $categoryDisplayName = $categoryNames[$category] ?? ucfirst(str_replace('_', ' ', $category));
+        $description = "{$categoryDisplayName} files for {$semesterName} {$academicYear}";
+        $folderPath = "/departments/{$departmentId}/{$category}/{$semester}";
         
         $stmt->execute([
             $folderName, 
             $description, 
             $userId, 
             $departmentId, 
+            $category,
             $folderPath, 
-            1
+            2
         ]);
         
         return $pdo->lastInsertId();
         
     } catch(Exception $e) {
-        error_log("Error creating semester folder: " . $e->getMessage());
+        error_log("Error creating category folder: " . $e->getMessage());
         return false;
     }
 }
