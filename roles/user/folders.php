@@ -511,7 +511,6 @@ function getUserInitials($fullName) {
                     <i class='bx bx-search'></i>
                 </div>
             </div>
-
             <!-- Department Tree with Categories -->
             <div class="department-tree">
                 <?php if (!empty($departments)): ?>
