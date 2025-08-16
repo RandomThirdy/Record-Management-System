@@ -1,4 +1,4 @@
-// ODCI/roles/user/assets/js/folders.js - Fixed version
+// ODCI/roles/user/assets/js/folders.js
 
 // Global variables
 let selectedFiles = [];
@@ -10,59 +10,45 @@ const fileCategories = window.fileCategories || {};
 function openUploadModal() {
     const modal = document.getElementById('uploadModal');
     const container = document.getElementById('modalContainer');
-    if (modal && container) {
-        modal.style.opacity = '1';
-        modal.style.visibility = 'visible';
-        setTimeout(() => {
-            container.style.transform = 'scale(1) translateY(0)';
-        }, 10);
-        document.body.style.overflow = 'hidden';
-    }
+    modal.style.opacity = '1';
+    modal.style.visibility = 'visible';
+    setTimeout(() => {
+        container.style.transform = 'scale(1) translateY(0)';
+    }, 10);
+    document.body.style.overflow = 'hidden';
 }
 
 function closeUploadModal() {
     const modal = document.getElementById('uploadModal');
     const container = document.getElementById('modalContainer');
-    if (modal && container) {
-        container.style.transform = 'scale(0.9) translateY(20px)';
-        setTimeout(() => {
-            modal.style.opacity = '0';
-            modal.style.visibility = 'hidden';
-            document.body.style.overflow = 'auto';
-            resetForm();
-        }, 300);
-    }
+    container.style.transform = 'scale(0.9) translateY(20px)';
+    setTimeout(() => {
+        modal.style.opacity = '0';
+        modal.style.visibility = 'hidden';
+        document.body.style.overflow = 'auto';
+        resetForm();
+    }, 300);
 }
 
 function handleFileSelect(files) {
-    if (files && files.length > 0) {
-        selectedFiles = Array.from(files);
-        displayFilePreview();
-    }
+    selectedFiles = Array.from(files);
+    displayFilePreview();
 }
 
 function handleDrop(event) {
     event.preventDefault();
-    event.stopPropagation();
+    const dropZone = event.target;
+    dropZone.style.borderColor = '#10b981';
+    dropZone.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
     
-    const dropZone = event.currentTarget;
-    if (dropZone) {
-        dropZone.style.borderColor = '#10b981';
-        dropZone.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
-    }
-    
-    if (event.dataTransfer && event.dataTransfer.files) {
-        const files = Array.from(event.dataTransfer.files);
-        selectedFiles = files;
-        displayFilePreview();
-    }
+    const files = Array.from(event.dataTransfer.files);
+    selectedFiles = files;
+    displayFilePreview();
 }
 
 function displayFilePreview() {
     const uploadPrompt = document.getElementById('uploadPrompt');
     const filePreview = document.getElementById('filePreview');
-    
-    if (!uploadPrompt || !filePreview) return;
     
     if (selectedFiles.length > 0) {
         uploadPrompt.style.display = 'none';
@@ -77,7 +63,7 @@ function displayFilePreview() {
                     <div style="display: flex; align-items: center;">
                         <i class='bx ${fileIcon}' style="font-size: 24px; color: #10b981; margin-right: 12px;"></i>
                         <div>
-                            <div style="font-weight: 500; color: #374151; font-size: 14px;">${escapeHtml(file.name)}</div>
+                            <div style="font-weight: 500; color: #374151; font-size: 14px;">${file.name}</div>
                             <div style="font-size: 12px; color: #6b7280;">${formatFileSize(file.size)}</div>
                         </div>
                     </div>
@@ -96,15 +82,11 @@ function displayFilePreview() {
 }
 
 function removeFile(index) {
-    if (index >= 0 && index < selectedFiles.length) {
-        selectedFiles.splice(index, 1);
-        displayFilePreview();
-    }
+    selectedFiles.splice(index, 1);
+    displayFilePreview();
 }
 
 function getFileIcon(filename) {
-    if (!filename || typeof filename !== 'string') return 'bxs-file';
-    
     const ext = filename.split('.').pop().toLowerCase();
     const iconMap = {
         'pdf': 'bxs-file-pdf',
@@ -130,7 +112,7 @@ function getFileIcon(filename) {
 }
 
 function formatFileSize(bytes) {
-    if (!bytes || bytes === 0) return '0 Bytes';
+    if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -138,7 +120,7 @@ function formatFileSize(bytes) {
 }
 
 function addTag(tag) {
-    if (tag && typeof tag === 'string' && !selectedTags.includes(tag)) {
+    if (!selectedTags.includes(tag)) {
         selectedTags.push(tag);
         displaySelectedTags();
         updateTagsInput();
@@ -147,26 +129,22 @@ function addTag(tag) {
 
 function addCustomTag() {
     const input = document.getElementById('customTag');
-    if (input) {
-        const tag = input.value.trim();
-        if (tag && !selectedTags.includes(tag)) {
-            selectedTags.push(tag);
-            displaySelectedTags();
-            updateTagsInput();
-            input.value = '';
-        }
+    const tag = input.value.trim();
+    if (tag && !selectedTags.includes(tag)) {
+        selectedTags.push(tag);
+        displaySelectedTags();
+        updateTagsInput();
+        input.value = '';
     }
 }
 
 function displaySelectedTags() {
     const container = document.getElementById('selectedTags');
-    if (!container) return;
-    
     let html = '';
     selectedTags.forEach((tag, index) => {
         html += `
             <div style="background: #10b981; color: white; border-radius: 16px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-                ${escapeHtml(tag)}
+                ${tag}
                 <button type="button" onclick="removeTag(${index})" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;">
                     <i class='bx bx-x'></i>
                 </button>
@@ -177,11 +155,9 @@ function displaySelectedTags() {
 }
 
 function removeTag(index) {
-    if (index >= 0 && index < selectedTags.length) {
-        selectedTags.splice(index, 1);
-        displaySelectedTags();
-        updateTagsInput();
-    }
+    selectedTags.splice(index, 1);
+    displaySelectedTags();
+    updateTagsInput();
 }
 
 function updateTagsInput() {
@@ -197,17 +173,15 @@ function resetForm() {
     const form = document.getElementById('uploadForm');
     if (form) form.reset();
     
-    const elements = {
-        uploadPrompt: document.getElementById('uploadPrompt'),
-        filePreview: document.getElementById('filePreview'),
-        selectedTagsContainer: document.getElementById('selectedTags'),
-        uploadProgress: document.getElementById('uploadProgress')
-    };
+    const uploadPrompt = document.getElementById('uploadPrompt');
+    const filePreview = document.getElementById('filePreview');
+    const selectedTagsContainer = document.getElementById('selectedTags');
+    const uploadProgress = document.getElementById('uploadProgress');
     
-    if (elements.uploadPrompt) elements.uploadPrompt.style.display = 'block';
-    if (elements.filePreview) elements.filePreview.style.display = 'none';
-    if (elements.selectedTagsContainer) elements.selectedTagsContainer.innerHTML = '';
-    if (elements.uploadProgress) elements.uploadProgress.style.display = 'none';
+    if (uploadPrompt) uploadPrompt.style.display = 'block';
+    if (filePreview) filePreview.style.display = 'none';
+    if (selectedTagsContainer) selectedTagsContainer.innerHTML = '';
+    if (uploadProgress) uploadProgress.style.display = 'none';
     updateTagsInput();
 }
 
@@ -231,8 +205,6 @@ function simulateUpload() {
 
 // Department tree functionality
 function toggleDepartment(deptId) {
-    if (!deptId) return;
-    
     const content = document.getElementById(`content-${deptId}`);
     const icon = document.getElementById(`icon-${deptId}`);
     const header = content ? content.previousElementSibling : null;
@@ -255,8 +227,6 @@ function toggleDepartment(deptId) {
 
 // Category functionality
 function toggleCategory(deptId, categoryKey) {
-    if (!deptId || !categoryKey) return;
-    
     const content = document.getElementById(`category-content-${deptId}-${categoryKey}`);
     const icon = document.getElementById(`icon-${deptId}-${categoryKey}`);
     const header = content ? content.previousElementSibling : null;
@@ -278,22 +248,11 @@ function toggleCategory(deptId, categoryKey) {
 }
 
 function showCategorySemester(deptId, categoryKey, semester) {
-    if (!deptId || !categoryKey || !semester) return;
-    
     // Update tab active state
-    const tabsContainer = document.getElementById(`category-content-${deptId}-${categoryKey}`);
-    if (tabsContainer) {
-        const tabs = tabsContainer.querySelectorAll('.semester-tab');
-        tabs.forEach(tab => tab.classList.remove('active'));
-        
-        // Find and activate the correct tab
-        tabs.forEach(tab => {
-            const tabText = tab.textContent.toLowerCase();
-            if ((semester === 'first' && tabText.includes('first')) ||
-                (semester === 'second' && tabText.includes('second'))) {
-                tab.classList.add('active');
-            }
-        });
+    const tabs = document.querySelectorAll(`#category-content-${deptId}-${categoryKey} .semester-tab`);
+    tabs.forEach(tab => tab.classList.remove('active'));
+    if (event && event.target) {
+        event.target.classList.add('active');
     }
     
     // Show/hide semester content
@@ -311,7 +270,7 @@ function showCategorySemester(deptId, categoryKey, semester) {
 
 function loadDepartmentCategories(deptId) {
     // Security check: Only load files for user's department
-    if (!userDepartmentId || deptId != userDepartmentId) {
+    if (deptId != userDepartmentId) {
         console.error('Access denied: Cannot load categories from different department');
         return;
     }
@@ -323,22 +282,17 @@ function loadDepartmentCategories(deptId) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-            department_id: parseInt(deptId),
-            user_department_id: parseInt(userDepartmentId)
+            department_id: deptId,
+            user_department_id: userDepartmentId
         })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             updateCategoryCounts(deptId, data.counts || {});
         } else {
             console.error('Error loading category counts:', data.message);
-            if (data.message && data.message.includes('Access denied')) {
+            if (data.message.includes('Access denied')) {
                 alert('Access denied: You can only view files from your department.');
             }
         }
@@ -360,7 +314,7 @@ function updateCategoryCounts(deptId, counts) {
 
 function loadCategoryFiles(deptId, categoryKey) {
     // Security check: Only load files for user's department
-    if (!userDepartmentId || deptId != userDepartmentId) {
+    if (deptId != userDepartmentId) {
         console.error('Access denied: Cannot load files from different department');
         return;
     }
@@ -372,24 +326,19 @@ function loadCategoryFiles(deptId, categoryKey) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-            department_id: parseInt(deptId),
+            department_id: deptId,
             category: categoryKey,
-            user_department_id: parseInt(userDepartmentId)
+            user_department_id: userDepartmentId
         })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             renderCategoryFiles(deptId, categoryKey, 'first', data.first_semester || []);
             renderCategoryFiles(deptId, categoryKey, 'second', data.second_semester || []);
         } else {
             console.error('Error loading category files:', data.message);
-            if (data.message && data.message.includes('Access denied')) {
+            if (data.message.includes('Access denied')) {
                 alert('Access denied: You can only view files from your department.');
             }
         }
@@ -404,7 +353,7 @@ function renderCategoryFiles(deptId, categoryKey, semester, files) {
     
     if (!container) return;
     
-    if (!files || files.length === 0) {
+    if (files.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <i class='bx bx-folder-open empty-icon'></i>
@@ -418,21 +367,17 @@ function renderCategoryFiles(deptId, categoryKey, semester, files) {
     let html = '';
     files.forEach(file => {
         const fileIcon = getFileIcon(file.file_name);
-        const fileSize = formatFileSize(parseInt(file.file_size) || 0);
-        const uploadDate = file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : 'Unknown';
-        const fileName = file.original_name || file.file_name || 'Unknown File';
-        const uploaderName = file.uploader_name || 'Unknown User';
-        const description = file.description || '';
-        const tags = Array.isArray(file.tags) ? file.tags : [];
+        const fileSize = formatFileSize(parseInt(file.file_size));
+        const uploadDate = new Date(file.uploaded_at).toLocaleDateString();
         
         html += `
-            <div class="file-card" onclick="downloadFile('${file.id}', '${escapeHtml(fileName)}')">
+            <div class="file-card" onclick="downloadFile('${file.id}', '${file.file_name}')">
                 <div class="file-header">
                     <div class="file-icon">
                         <i class='bx ${fileIcon}'></i>
                     </div>
                     <div class="file-info">
-                        <div class="file-name" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</div>
+                        <div class="file-name" title="${file.original_name || file.file_name}">${file.original_name || file.file_name}</div>
                     </div>
                 </div>
                 <div class="file-meta">
@@ -440,12 +385,12 @@ function renderCategoryFiles(deptId, categoryKey, semester, files) {
                     <span>${uploadDate}</span>
                 </div>
                 <div class="file-uploader">
-                    <i class='bx bx-user'></i> ${escapeHtml(uploaderName)}
+                    <i class='bx bx-user'></i> ${file.uploader_name}
                 </div>
-                ${description ? `<div style="font-size: 11px; color: #6b7280; margin-top: 6px; padding: 6px; background: #f8fafc; border-radius: 4px; line-height: 1.3;">${escapeHtml(description)}</div>` : ''}
-                ${tags.length > 0 ? `
+                ${file.description ? `<div style="font-size: 11px; color: #6b7280; margin-top: 6px; padding: 6px; background: #f8fafc; border-radius: 4px; line-height: 1.3;">${file.description}</div>` : ''}
+                ${file.tags && file.tags.length > 0 ? `
                     <div style="margin-top: 6px;">
-                        ${tags.map(tag => `<span style="display: inline-block; background: #e0f2fe; color: #0369a1; font-size: 9px; padding: 2px 6px; border-radius: 10px; margin-right: 4px; margin-top: 2px;">${escapeHtml(tag)}</span>`).join('')}
+                        ${file.tags.map(tag => `<span style="display: inline-block; background: #e0f2fe; color: #0369a1; font-size: 9px; padding: 2px 6px; border-radius: 10px; margin-right: 4px; margin-top: 2px;">${tag}</span>`).join('')}
                     </div>
                 ` : ''}
             </div>
@@ -456,41 +401,22 @@ function renderCategoryFiles(deptId, categoryKey, semester, files) {
 }
 
 function downloadFile(fileId, fileName) {
-    if (!fileId || !userDepartmentId) {
-        console.error('Invalid file ID or department ID');
-        return;
-    }
-    
     // Create a temporary link to trigger download
     const link = document.createElement('a');
-    link.href = `handlers/download_file.php?id=${encodeURIComponent(fileId)}&dept_id=${encodeURIComponent(userDepartmentId)}`;
-    if (fileName) {
-        link.download = fileName;
-    }
-    link.style.display = 'none';
+    link.href = `handlers/download_file.php?id=${fileId}&dept_id=${userDepartmentId}`;
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// Utility function to escape HTML
-function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return '';
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
 // Sidebar functionality
 function initializeSidebar() {
     const allSideMenu = document.querySelectorAll('#sidebar .side-menu.top li a');
-    allSideMenu.forEach(item => {
+    allSideMenu.forEach(item=> {
         const li = item.parentElement;
         item.addEventListener('click', function () {
-            allSideMenu.forEach(i => {
+            allSideMenu.forEach(i=> {
                 i.parentElement.classList.remove('active');
             })
             li.classList.add('active');
@@ -515,10 +441,10 @@ function initializeSearch() {
 
     if (searchButton && searchButtonIcon && searchForm) {
         searchButton.addEventListener('click', function (e) {
-            if (window.innerWidth < 576) {
+            if(window.innerWidth < 576) {
                 e.preventDefault();
                 searchForm.classList.toggle('show');
-                if (searchForm.classList.contains('show')) {
+                if(searchForm.classList.contains('show')) {
                     searchButtonIcon.classList.replace('bx-search', 'bx-x');
                 } else {
                     searchButtonIcon.classList.replace('bx-x', 'bx-search');
@@ -533,7 +459,7 @@ function initializeDarkMode() {
     const switchMode = document.getElementById('switch-mode');
     if (switchMode) {
         switchMode.addEventListener('change', function () {
-            if (this.checked) {
+            if(this.checked) {
                 document.body.classList.add('dark');
             } else {
                 document.body.classList.remove('dark');
@@ -548,15 +474,15 @@ function initializeResponsive() {
     const searchButtonIcon = document.querySelector('#content nav form .form-input button .bx');
     const searchForm = document.querySelector('#content nav form');
 
-    if (window.innerWidth < 768 && sidebar) {
+    if(window.innerWidth < 768 && sidebar) {
         sidebar.classList.add('hide');
-    } else if (window.innerWidth > 576 && searchButtonIcon && searchForm) {
+    } else if(window.innerWidth > 576 && searchButtonIcon && searchForm) {
         searchButtonIcon.classList.replace('bx-x', 'bx-search');
         searchForm.classList.remove('show');
     }
 
     window.addEventListener('resize', function () {
-        if (this.innerWidth > 576 && searchButtonIcon && searchForm) {
+        if(this.innerWidth > 576 && searchButtonIcon && searchForm) {
             searchButtonIcon.classList.replace('bx-x', 'bx-search');
             searchForm.classList.remove('show');
         }
@@ -572,8 +498,7 @@ function initializeDepartmentSearch() {
             
             // Search within categories and files
             document.querySelectorAll('.category-item').forEach(categoryItem => {
-                const categoryNameEl = categoryItem.querySelector('.category-name');
-                const categoryName = categoryNameEl ? categoryNameEl.textContent.toLowerCase() : '';
+                const categoryName = categoryItem.querySelector('.category-name')?.textContent.toLowerCase() || '';
                 let hasMatchingFiles = false;
                 
                 // Check if category name matches
@@ -581,13 +506,9 @@ function initializeDepartmentSearch() {
                 
                 // Check files within this category
                 categoryItem.querySelectorAll('.file-card').forEach(card => {
-                    const fileNameEl = card.querySelector('.file-name');
-                    const uploaderEl = card.querySelector('.file-uploader');
-                    const descriptionEl = card.querySelector('div[style*="background: #f8fafc"]');
-                    
-                    const fileName = fileNameEl ? fileNameEl.textContent.toLowerCase() : '';
-                    const uploader = uploaderEl ? uploaderEl.textContent.toLowerCase() : '';
-                    const description = descriptionEl ? descriptionEl.textContent.toLowerCase() : '';
+                    const fileName = card.querySelector('.file-name')?.textContent.toLowerCase() || '';
+                    const uploader = card.querySelector('.file-uploader')?.textContent.toLowerCase() || '';
+                    const description = card.querySelector('div[style*="background: #f8fafc"]')?.textContent.toLowerCase() || '';
                     
                     const fileMatches = fileName.includes(searchTerm) || uploader.includes(searchTerm) || description.includes(searchTerm);
                     
@@ -609,11 +530,8 @@ function initializeDepartmentSearch() {
             
             // Also filter department items
             document.querySelectorAll('.department-item').forEach(item => {
-                const deptNameEl = item.querySelector('.department-name');
-                const deptCodeEl = item.querySelector('.department-code');
-                
-                const deptName = deptNameEl ? deptNameEl.textContent.toLowerCase() : '';
-                const deptCode = deptCodeEl ? deptCodeEl.textContent.toLowerCase() : '';
+                const deptName = item.querySelector('.department-name')?.textContent.toLowerCase() || '';
+                const deptCode = item.querySelector('.department-code')?.textContent.toLowerCase() || '';
                 
                 if (deptName.includes(searchTerm) || deptCode.includes(searchTerm) || searchTerm === '') {
                     item.style.display = 'block';
@@ -632,21 +550,12 @@ function initializeUploadForm() {
         uploadForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const categorySelect = document.querySelector('select[name="category"]');
-            const semesterRadio = document.querySelector('input[name="semester"]:checked');
-            const descriptionTextarea = document.getElementById('fileDescription');
-            
-            const category = categorySelect ? categorySelect.value : '';
-            const semester = semesterRadio ? semesterRadio.value : '';
-            const description = descriptionTextarea ? descriptionTextarea.value : '';
+            const category = document.querySelector('select[name="category"]')?.value;
+            const semester = document.querySelector('input[name="semester"]:checked')?.value;
+            const description = document.getElementById('fileDescription')?.value || '';
             
             if (!category || !semester || selectedFiles.length === 0) {
                 alert('Please select a category, semester, and at least one file.');
-                return;
-            }
-            
-            if (!userDepartmentId) {
-                alert('Department ID is missing. Please refresh the page and try again.');
                 return;
             }
             
@@ -671,24 +580,16 @@ function initializeUploadForm() {
                 method: 'POST',
                 body: formData
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     alert('Files uploaded successfully!');
                     closeUploadModal();
                     // Refresh the category counts and files
-                    if (userDepartmentId) {
-                        loadDepartmentCategories(userDepartmentId);
-                        loadCategoryFiles(userDepartmentId, category);
-                    }
+                    loadDepartmentCategories(userDepartmentId);
+                    loadCategoryFiles(userDepartmentId, category);
                 } else {
-                    alert('Upload failed: ' + (data.message || 'Unknown error'));
-                    console.error('Upload error:', data);
+                    alert('Upload failed: ' + data.message);
                 }
             })
             .catch(error => {
@@ -749,12 +650,9 @@ function initializeModalEvents() {
             this.style.background = '#d1fae5';
         });
 
-        dropZone.addEventListener('dragleave', function(event) {
-            // Only reset styles if we're actually leaving the drop zone
-            if (!this.contains(event.relatedTarget)) {
-                this.style.borderColor = '#10b981';
-                this.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
-            }
+        dropZone.addEventListener('dragleave', function() {
+            this.style.borderColor = '#10b981';
+            this.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
         });
 
         dropZone.addEventListener('drop', handleDrop);
@@ -774,9 +672,6 @@ function initializeModalEvents() {
 
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing folders.js');
-    console.log('User Department ID:', userDepartmentId);
-    
     // Initialize all components
     initializeSidebar();
     initializeSearch();
