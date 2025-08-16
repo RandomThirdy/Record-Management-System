@@ -4,6 +4,7 @@
 let selectedFiles = [];
 let selectedTags = [];
 const userDepartmentId = window.userDepartmentId || null;
+const fileCategories = window.fileCategories || {};
 
 // Modal functionality
 function openUploadModal() {
@@ -219,22 +220,44 @@ function toggleDepartment(deptId) {
         icon.classList.add('rotated');
         if (header) header.classList.add('active');
         
-        // Load files for this department if not already loaded
-        loadDepartmentFiles(deptId);
+        // Load category file counts for this department if not already loaded
+        loadDepartmentCategories(deptId);
     }
 }
 
-function showSemester(deptId, semester) {
+// Category functionality
+function toggleCategory(deptId, categoryKey) {
+    const content = document.getElementById(`category-content-${deptId}-${categoryKey}`);
+    const icon = document.getElementById(`icon-${deptId}-${categoryKey}`);
+    const header = content ? content.previousElementSibling : null;
+    
+    if (!content || !icon) return;
+    
+    if (content.classList.contains('show')) {
+        content.classList.remove('show');
+        icon.classList.remove('rotated');
+        if (header) header.classList.remove('active');
+    } else {
+        content.classList.add('show');
+        icon.classList.add('rotated');
+        if (header) header.classList.add('active');
+        
+        // Load files for this category if not already loaded
+        loadCategoryFiles(deptId, categoryKey);
+    }
+}
+
+function showCategorySemester(deptId, categoryKey, semester) {
     // Update tab active state
-    const tabs = document.querySelectorAll(`#content-${deptId} .semester-tab`);
+    const tabs = document.querySelectorAll(`#category-content-${deptId}-${categoryKey} .semester-tab`);
     tabs.forEach(tab => tab.classList.remove('active'));
     if (event && event.target) {
         event.target.classList.add('active');
     }
     
     // Show/hide semester content
-    const firstSemester = document.getElementById(`files-${deptId}-first`);
-    const secondSemester = document.getElementById(`files-${deptId}-second`);
+    const firstSemester = document.getElementById(`files-${deptId}-${categoryKey}-first`);
+    const secondSemester = document.getElementById(`files-${deptId}-${categoryKey}-second`);
     
     if (semester === 'first') {
         if (firstSemester) firstSemester.style.display = 'grid';
@@ -245,43 +268,88 @@ function showSemester(deptId, semester) {
     }
 }
 
-function loadDepartmentFiles(deptId) {
+function loadDepartmentCategories(deptId) {
     // Security check: Only load files for user's department
     if (deptId != userDepartmentId) {
-        console.error('Access denied: Cannot load files from different department');
+        console.error('Access denied: Cannot load categories from different department');
         return;
     }
     
-    // AJAX call to load files from database
-    fetch('handlers/department_files.php', {
+    // AJAX call to load category file counts
+    fetch('handlers/category_counts.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
             department_id: deptId,
-            user_department_id: userDepartmentId // Send user's department for validation
+            user_department_id: userDepartmentId
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            renderFiles(deptId, 'first', data.first_semester || []);
-            renderFiles(deptId, 'second', data.second_semester || []);
+            updateCategoryCounts(deptId, data.counts || {});
         } else {
-            console.error('Error loading files:', data.message);
+            console.error('Error loading category counts:', data.message);
             if (data.message.includes('Access denied')) {
                 alert('Access denied: You can only view files from your department.');
             }
         }
     })
     .catch(error => {
-        console.error('Error loading files:', error);
+        console.error('Error loading category counts:', error);
     });
 }
 
-function renderFiles(deptId, semester, files) {
-    const container = document.getElementById(`files-${deptId}-${semester}`);
+function updateCategoryCounts(deptId, counts) {
+    Object.keys(fileCategories).forEach(categoryKey => {
+        const countElement = document.querySelector(`[data-category="${categoryKey}"] .category-count`);
+        if (countElement) {
+            const count = counts[categoryKey] || 0;
+            countElement.textContent = `${count} file${count !== 1 ? 's' : ''}`;
+        }
+    });
+}
+
+function loadCategoryFiles(deptId, categoryKey) {
+    // Security check: Only load files for user's department
+    if (deptId != userDepartmentId) {
+        console.error('Access denied: Cannot load files from different department');
+        return;
+    }
+    
+    // AJAX call to load files from database for specific category
+    fetch('handlers/category_files.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+            department_id: deptId,
+            category: categoryKey,
+            user_department_id: userDepartmentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderCategoryFiles(deptId, categoryKey, 'first', data.first_semester || []);
+            renderCategoryFiles(deptId, categoryKey, 'second', data.second_semester || []);
+        } else {
+            console.error('Error loading category files:', data.message);
+            if (data.message.includes('Access denied')) {
+                alert('Access denied: You can only view files from your department.');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading category files:', error);
+    });
+}
+
+function renderCategoryFiles(deptId, categoryKey, semester, files) {
+    const container = document.getElementById(`files-${deptId}-${categoryKey}-${semester}`);
     
     if (!container) return;
     
@@ -290,7 +358,7 @@ function renderFiles(deptId, semester, files) {
             <div class="empty-state">
                 <i class='bx bx-folder-open empty-icon'></i>
                 <p>No files in ${semester === 'first' ? 'First' : 'Second'} Semester</p>
-                <small>Files uploaded to this semester will appear here</small>
+                <small>Files uploaded to this category and semester will appear here</small>
             </div>
         `;
         return;
@@ -309,7 +377,7 @@ function renderFiles(deptId, semester, files) {
                         <i class='bx ${fileIcon}'></i>
                     </div>
                     <div class="file-info">
-                        <div class="file-name">${file.original_name || file.file_name}</div>
+                        <div class="file-name" title="${file.original_name || file.file_name}">${file.original_name || file.file_name}</div>
                     </div>
                 </div>
                 <div class="file-meta">
@@ -319,7 +387,12 @@ function renderFiles(deptId, semester, files) {
                 <div class="file-uploader">
                     <i class='bx bx-user'></i> ${file.uploader_name}
                 </div>
-                ${file.description ? `<div style="font-size: 12px; color: #6b7280; margin-top: 8px; padding: 8px; background: #f8fafc; border-radius: 4px;">${file.description}</div>` : ''}
+                ${file.description ? `<div style="font-size: 11px; color: #6b7280; margin-top: 6px; padding: 6px; background: #f8fafc; border-radius: 4px; line-height: 1.3;">${file.description}</div>` : ''}
+                ${file.tags && file.tags.length > 0 ? `
+                    <div style="margin-top: 6px;">
+                        ${file.tags.map(tag => `<span style="display: inline-block; background: #e0f2fe; color: #0369a1; font-size: 9px; padding: 2px 6px; border-radius: 10px; margin-right: 4px; margin-top: 2px;">${tag}</span>`).join('')}
+                    </div>
+                ` : ''}
             </div>
         `;
     });
@@ -423,25 +496,44 @@ function initializeDepartmentSearch() {
         departmentSearch.addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
             
-            // Since we only show user's department, search within file cards
-            document.querySelectorAll('.file-card').forEach(card => {
-                const fileName = card.querySelector('.file-name')?.textContent.toLowerCase() || '';
-                const uploader = card.querySelector('.file-uploader')?.textContent.toLowerCase() || '';
-                const description = card.querySelector('div[style*="background: #f8fafc"]')?.textContent.toLowerCase() || '';
+            // Search within categories and files
+            document.querySelectorAll('.category-item').forEach(categoryItem => {
+                const categoryName = categoryItem.querySelector('.category-name')?.textContent.toLowerCase() || '';
+                let hasMatchingFiles = false;
                 
-                if (fileName.includes(searchTerm) || uploader.includes(searchTerm) || description.includes(searchTerm)) {
-                    card.style.display = 'block';
+                // Check if category name matches
+                const categoryMatches = categoryName.includes(searchTerm);
+                
+                // Check files within this category
+                categoryItem.querySelectorAll('.file-card').forEach(card => {
+                    const fileName = card.querySelector('.file-name')?.textContent.toLowerCase() || '';
+                    const uploader = card.querySelector('.file-uploader')?.textContent.toLowerCase() || '';
+                    const description = card.querySelector('div[style*="background: #f8fafc"]')?.textContent.toLowerCase() || '';
+                    
+                    const fileMatches = fileName.includes(searchTerm) || uploader.includes(searchTerm) || description.includes(searchTerm);
+                    
+                    if (fileMatches) {
+                        card.style.display = 'block';
+                        hasMatchingFiles = true;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                // Show/hide category based on matches
+                if (categoryMatches || hasMatchingFiles || searchTerm === '') {
+                    categoryItem.style.display = 'block';
                 } else {
-                    card.style.display = 'none';
+                    categoryItem.style.display = 'none';
                 }
             });
             
-            // Also filter department items (though we only have one)
+            // Also filter department items
             document.querySelectorAll('.department-item').forEach(item => {
                 const deptName = item.querySelector('.department-name')?.textContent.toLowerCase() || '';
                 const deptCode = item.querySelector('.department-code')?.textContent.toLowerCase() || '';
                 
-                if (deptName.includes(searchTerm) || deptCode.includes(searchTerm)) {
+                if (deptName.includes(searchTerm) || deptCode.includes(searchTerm) || searchTerm === '') {
                     item.style.display = 'block';
                 } else {
                     item.style.display = 'none';
@@ -458,11 +550,12 @@ function initializeUploadForm() {
         uploadForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
+            const category = document.querySelector('select[name="category"]')?.value;
             const semester = document.querySelector('input[name="semester"]:checked')?.value;
             const description = document.getElementById('fileDescription')?.value || '';
             
-            if (!semester || selectedFiles.length === 0) {
-                alert('Please select a semester and at least one file.');
+            if (!category || !semester || selectedFiles.length === 0) {
+                alert('Please select a category, semester, and at least one file.');
                 return;
             }
             
@@ -474,6 +567,7 @@ function initializeUploadForm() {
             
             const formData = new FormData();
             formData.append('department', userDepartmentId); 
+            formData.append('category', category);
             formData.append('semester', semester);
             formData.append('description', description);
             formData.append('tags', JSON.stringify(selectedTags));
@@ -491,7 +585,9 @@ function initializeUploadForm() {
                 if (data.success) {
                     alert('Files uploaded successfully!');
                     closeUploadModal();
-                    loadDepartmentFiles(userDepartmentId);
+                    // Refresh the category counts and files
+                    loadDepartmentCategories(userDepartmentId);
+                    loadCategoryFiles(userDepartmentId, category);
                 } else {
                     alert('Upload failed: ' + data.message);
                 }
@@ -585,9 +681,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeUploadForm();
     initializeModalEvents();
 
-    // Auto-load user's department files on page load
+    // Auto-load user's department on page load
     if (userDepartmentId) {
-        // Auto-expand user's department
+        // Auto-expand user's department after a short delay
         setTimeout(() => {
             toggleDepartment(userDepartmentId);
         }, 500);
@@ -603,5 +699,6 @@ window.addTag = addTag;
 window.addCustomTag = addCustomTag;
 window.removeTag = removeTag;
 window.toggleDepartment = toggleDepartment;
-window.showSemester = showSemester;
+window.toggleCategory = toggleCategory;
+window.showCategorySemester = showCategorySemester;
 window.downloadFile = downloadFile;
