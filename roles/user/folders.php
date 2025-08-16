@@ -590,7 +590,6 @@ function getUserInitials($fullName) {
     </section>
 
     <script>
-        // Pass PHP variables to JavaScript
         window.userDepartmentId = <?php echo json_encode($userDepartmentId); ?>;
         window.fileCategories = <?php echo json_encode($fileCategories); ?>;
     </script>
