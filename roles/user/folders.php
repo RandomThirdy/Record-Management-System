@@ -396,7 +396,7 @@ function getUserInitials($fullName) {
                         </li>
                         <li><i class='bx bx-chevron-right'></i></li>
                         <li>
-                            <a class="active" href="#">Department Folders</a>
+                            <a class="" href="#">Department Folders</a>
                         </li>
                     </ul>
                 </div>
