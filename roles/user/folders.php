@@ -60,6 +60,90 @@ if (!$userDepartmentId) {
     exit();
 }
 
+// Define file categories
+$fileCategories = [
+    'ipcr_accomplishment' => [
+        'name' => 'IPCR Accomplishment',
+        'icon' => 'bxs-trophy',
+        'color' => '#f59e0b'
+    ],
+    'ipcr_target' => [
+        'name' => 'IPCR Target',
+        'icon' => 'bxs-bullseye',
+        'color' => '#ef4444'
+    ],
+    'workload' => [
+        'name' => 'Workload',
+        'icon' => 'bxs-briefcase',
+        'color' => '#8b5cf6'
+    ],
+    'course_syllabus' => [
+        'name' => 'Course Syllabus',
+        'icon' => 'bxs-book-content',
+        'color' => '#06b6d4'
+    ],
+    'syllabus_acceptance' => [
+        'name' => 'Course Syllabus Acceptance Form',
+        'icon' => 'bxs-check-circle',
+        'color' => '#10b981'
+    ],
+    'exam' => [
+        'name' => 'Exam',
+        'icon' => 'bxs-file-doc',
+        'color' => '#dc2626'
+    ],
+    'tos' => [
+        'name' => 'TOS',
+        'icon' => 'bxs-spreadsheet',
+        'color' => '#059669'
+    ],
+    'class_record' => [
+        'name' => 'Class Record',
+        'icon' => 'bxs-data',
+        'color' => '#7c3aed'
+    ],
+    'grading_sheet' => [
+        'name' => 'Grading Sheet',
+        'icon' => 'bxs-calculator',
+        'color' => '#ea580c'
+    ],
+    'attendance_sheet' => [
+        'name' => 'Attendance Sheet',
+        'icon' => 'bxs-user-check',
+        'color' => '#0284c7'
+    ],
+    'stakeholder_feedback' => [
+        'name' => 'Stakeholder\'s Feedback Form w/ Summary',
+        'icon' => 'bxs-comment-detail',
+        'color' => '#9333ea'
+    ],
+    'consultation' => [
+        'name' => 'Consultation',
+        'icon' => 'bxs-chat',
+        'color' => '#0d9488'
+    ],
+    'lecture' => [
+        'name' => 'Lecture',
+        'icon' => 'bxs-chalkboard',
+        'color' => '#7c2d12'
+    ],
+    'activities' => [
+        'name' => 'Activities',
+        'icon' => 'bxs-game',
+        'color' => '#be185d'
+    ],
+    'exam_acknowledgement' => [
+        'name' => 'CEIT-QF-03 Discussion of Examination Acknowledgement Receipt Form',
+        'icon' => 'bxs-receipt',
+        'color' => '#1e40af'
+    ],
+    'consultation_log' => [
+        'name' => 'Consultation Log Sheet Form',
+        'icon' => 'bxs-notepad',
+        'color' => '#374151'
+    ]
+];
+
 // Get departments from database - ONLY user's department
 function getUserDepartment($pdo, $departmentId) {
     try {
@@ -111,8 +195,8 @@ if ($userDepartment) {
     $departmentImage = "../../img/{$departmentCode}.jpg";
 }
 
-// Get or create semester folder - ONLY for user's department
-function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId, $userDepartmentId) {
+// Get or create category folder - ONLY for user's department
+function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $userId, $userDepartmentId) {
     // Security check: ensure user can only create folders in their own department
     if ($departmentId != $userDepartmentId) {
         throw new Exception("Access denied: Cannot create folder in different department");
@@ -126,9 +210,9 @@ function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId, $use
         // Check if folder exists - ONLY in user's department
         $stmt = $pdo->prepare("
             SELECT id FROM folders 
-            WHERE department_id = ? AND folder_name = ? AND is_deleted = 0
+            WHERE department_id = ? AND folder_name = ? AND category = ? AND is_deleted = 0
         ");
-        $stmt->execute([$departmentId, $folderName]);
+        $stmt->execute([$departmentId, $folderName, $category]);
         $folder = $stmt->fetch();
         
         if ($folder) {
@@ -137,18 +221,18 @@ function getOrCreateSemesterFolder($pdo, $departmentId, $semester, $userId, $use
         
         // Create new folder - ONLY in user's department
         $stmt = $pdo->prepare("
-            INSERT INTO folders (folder_name, description, created_by, department_id, folder_path, folder_level, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO folders (folder_name, description, created_by, department_id, category, folder_path, folder_level, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         
         $description = "Academic files for {$semesterName} {$academicYear}";
-        $folderPath = "/departments/{$departmentId}/{$semester}";
+        $folderPath = "/departments/{$departmentId}/{$category}/{$semester}";
         
-        $stmt->execute([$folderName, $description, $userId, $departmentId, $folderPath, 1]);
+        $stmt->execute([$folderName, $description, $userId, $departmentId, $category, $folderPath, 2]);
         return $pdo->lastInsertId();
         
     } catch(Exception $e) {
-        error_log("Error creating semester folder: " . $e->getMessage());
+        error_log("Error creating category folder: " . $e->getMessage());
         return false;
     }
 }
@@ -270,6 +354,20 @@ function getUserInitials($fullName) {
                         <?php echo $userDepartment ? htmlspecialchars($userDepartment['department_name']) . ' (' . $userDepartment['department_code'] . ')' : 'No Department Assigned'; ?>
                     </div>
                     <input type="hidden" name="department" value="<?php echo $userDepartmentId; ?>">
+                </div>
+
+                <!-- Category Selection -->
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
+                        <i class='bx bxs-category' style="color: #10b981; margin-right: 8px;"></i>
+                        File Category
+                    </label>
+                    <select name="category" required style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
+                        <option value="">Select a category...</option>
+                        <?php foreach ($fileCategories as $key => $category): ?>
+                            <option value="<?php echo $key; ?>"><?php echo htmlspecialchars($category['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <!-- Semester Selection -->
@@ -414,7 +512,7 @@ function getUserInitials($fullName) {
                 </div>
             </div>
 
-            <!-- Department Tree - Only user's department -->
+            <!-- Department Tree with Categories -->
             <div class="department-tree">
                 <?php if (!empty($departments)): ?>
                     <?php foreach ($departments as $dept): 
@@ -432,30 +530,51 @@ function getUserInitials($fullName) {
                                 <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $dept['id']; ?>"></i>
                             </div>
                             
-                            <div class="semester-content" id="content-<?php echo $dept['id']; ?>">
-                                <div class="semester-tabs">
-                                    <button class="semester-tab active" onclick="showSemester('<?php echo $dept['id']; ?>', 'first')">
-                                        <i class='bx bxs-folder'></i> First Semester
-                                    </button>
-                                    <button class="semester-tab" onclick="showSemester('<?php echo $dept['id']; ?>', 'second')">
-                                        <i class='bx bxs-folder'></i> Second Semester
-                                    </button>
-                                </div>
-                                
-                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-first">
-                                    <div class="empty-state">
-                                        <i class='bx bx-folder-open empty-icon'></i>
-                                        <p>No files in First Semester</p>
-                                        <small>Files uploaded to this semester will appear here</small>
-                                    </div>
-                                </div>
-                                
-                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-second" style="display: none;">
-                                    <div class="empty-state">
-                                        <i class='bx bx-folder-open empty-icon'></i>
-                                        <p>No files in Second Semester</p>
-                                        <small>Files uploaded to this semester will appear here</small>
-                                    </div>
+                            <div class="department-content" id="content-<?php echo $dept['id']; ?>">
+                                <!-- Categories Grid -->
+                                <div class="categories-grid">
+                                    <?php foreach ($fileCategories as $categoryKey => $category): ?>
+                                        <div class="category-item" data-category="<?php echo $categoryKey; ?>" onclick="toggleCategory('<?php echo $dept['id']; ?>', '<?php echo $categoryKey; ?>')">
+                                            <div class="category-header">
+                                                <div class="category-icon" style="background-color: <?php echo $category['color']; ?>">
+                                                    <i class='bx <?php echo $category['icon']; ?>'></i>
+                                                </div>
+                                                <div class="category-info">
+                                                    <div class="category-name"><?php echo htmlspecialchars($category['name']); ?></div>
+                                                    <div class="category-count">0 files</div>
+                                                </div>
+                                                <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>"></i>
+                                            </div>
+                                            
+                                            <!-- Semester Content for this Category -->
+                                            <div class="category-semester-content" id="category-content-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>">
+                                                <div class="semester-tabs">
+                                                    <button class="semester-tab active" onclick="showCategorySemester('<?php echo $dept['id']; ?>', '<?php echo $categoryKey; ?>', 'first')">
+                                                        <i class='bx bxs-folder'></i> First Semester
+                                                    </button>
+                                                    <button class="semester-tab" onclick="showCategorySemester('<?php echo $dept['id']; ?>', '<?php echo $categoryKey; ?>', 'second')">
+                                                        <i class='bx bxs-folder'></i> Second Semester
+                                                    </button>
+                                                </div>
+                                                
+                                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>-first">
+                                                    <div class="empty-state">
+                                                        <i class='bx bx-folder-open empty-icon'></i>
+                                                        <p>No files in First Semester</p>
+                                                        <small>Files uploaded to this category and semester will appear here</small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>-second" style="display: none;">
+                                                    <div class="empty-state">
+                                                        <i class='bx bx-folder-open empty-icon'></i>
+                                                        <p>No files in Second Semester</p>
+                                                        <small>Files uploaded to this category and semester will appear here</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
                             </div>
                         </div>
@@ -474,6 +593,7 @@ function getUserInitials($fullName) {
     <script>
         // Pass PHP variables to JavaScript
         window.userDepartmentId = <?php echo json_encode($userDepartmentId); ?>;
+        window.fileCategories = <?php echo json_encode($fileCategories); ?>;
     </script>
     <script src="assets/js/folders.js"></script>
 </body>
