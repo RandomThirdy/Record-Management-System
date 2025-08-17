@@ -6,123 +6,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Social Feed - CVSU NAIC</title>
     <link href='https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css' rel='stylesheet'>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- Component Stylesheets -->
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/navbar.css">
     <link rel="stylesheet" href="assets/css/social_feed.css">
+    <!-- <link rel="stylesheet" href="assets/css/style.css"> -->
 </head>
 
 <body>
-    <!-- Sidebar -->
-    <section id="sidebar">
-        <a href="#" class="brand">
-            <i class='bx bxs-dashboard'></i>
-            <span class="text">ODCI Admin</span>
-        </a>
-
-        <ul class="side-menu top">
-            <li>
-                <a href="dashboard.php">
-                    <i class='bx bxs-dashboard'></i>
-                    <span class="text">Dashboard</span>
-                </a>
-            </li>
-            <li>
-                <a href="users.php">
-                    <i class='bx bxs-group'></i>
-                    <span class="text">Users</span>
-                </a>
-            </li>
-            <li>
-                <a href="departments.php">
-                    <i class='bx bxs-buildings'></i>
-                    <span class="text">Departments</span>
-                </a>
-            </li>
-            <li>
-                <a href="files.php">
-                    <i class='bx bxs-file'></i>
-                    <span class="text">Files</span>
-                </a>
-            </li>
-            <li>
-                <a href="folders.php">
-                    <i class='bx bxs-folder'></i>
-                    <span class="text">Folders</span>
-                </a>
-            </li>
-            <li class="active">
-                <a href="social_feed.php">
-                    <i class='bx bx-news'></i>
-                    <span class="text">Social Feed</span>
-                </a>
-            </li>
-            <li>
-                <a href="reports.php">
-                    <i class='bx bxs-report'></i>
-                    <span class="text">Reports</span>
-                </a>
-            </li>
-        </ul>
-
-        <ul class="side-menu">
-            <li>
-                <a href="settings.php">
-                    <i class='bx bxs-cog'></i>
-                    <span class="text">System Settings</span>
-                </a>
-            </li>
-            <li>
-                <a href="activity_logs.php">
-                    <i class='bx bxs-time'></i>
-                    <span class="text">Activity Logs</span>
-                </a>
-            </li>
-            <li>
-                <a href="../../logout.php" class="logout">
-                    <i class='bx bxs-log-out-circle'></i>
-                    <span class="text">Logout</span>
-                </a>
-            </li>
-        </ul>
-    </section>
+    <!-- Sidebar Component -->
+    <?php include 'components/sidebar.html'; ?>
 
     <!-- Content -->
     <section id="content">
-        <!-- Navbar -->
-        <nav>
-            <i class='bx bx-menu'></i>
-            <a href="#" class="nav-link">Social Feed</a>
-
-            <form action="#" onsubmit="searchPosts(event)">
-                <div class="form-input">
-                    <input type="search" id="searchInput" placeholder="Search posts...">
-                    <button type="submit" class="search-btn">
-                        <i class='bx bx-search'></i>
-                    </button>
-                </div>
-            </form>
-
-            <input type="checkbox" id="switch-mode" hidden>
-            <label for="switch-mode" class="switch-mode"></label>
-
-            <a href="#" class="notification">
-                <i class='bx bxs-bell'></i>
-                <span class="num" id="notificationCount">0</span>
-            </a>
-
-            <a href="#" class="profile">
-                <img src="assets/img/default-avatar.png" alt="Profile" id="userAvatar">
-            </a>
-        </nav>
+        <!-- Navbar Component -->
+        <?php include 'components/navbar.html'; ?>
 
         <!-- Main Content -->
         <main>
-            <div class="feed-container">
-                <!-- Feed Header -->
-                <div class="feed-header">
-                    <h2><i class='bx bx-news'></i> Social Feed</h2>
-                    <p>Connect, share, and collaborate with your colleagues</p>
-                </div>
 
+            <div class="head-title">
+                <div class="left">
+                    <h1>Social Feed</h1>
+                    <ul class="breadcrumb">
+                        <li><a href="#">Dashboard</a></li>
+                        <li><i class='bx bx-chevron-right'></i></li>
+                        <li><a class="active" href="#">Overview</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="feed-container">
                 <!-- Feed Tabs -->
                 <div class="feed-tabs">
                     <button class="feed-tab active" data-filter="all">
@@ -132,13 +47,10 @@
                         <i class='bx bx-user'></i> My Posts
                     </button>
                     <button class="feed-tab" data-filter="department">
-                        <i class='bx bx-buildings'></i> Department
+                        <i class='bx bx-buildings'></i> Departments
                     </button>
                     <button class="feed-tab" data-filter="pinned">
                         <i class='bx bx-pin'></i> Pinned
-                    </button>
-                    <button class="feed-tab" data-filter="trending">
-                        <i class='bx bx-trending-up'></i> Trending
                     </button>
                 </div>
 
@@ -258,6 +170,30 @@
     <script src="assets/js/social_feed/comment_system.js"></script>
     <script src="assets/js/social_feed/media_handler.js"></script>
     <script src="assets/js/social_feed/main.js"></script>
+
+    <!-- Page-specific initialization -->
+    <script>
+        // Set active sidebar item and page title for social feed
+        document.addEventListener('DOMContentLoaded', function () {
+            // Set active sidebar item
+            window.AppUtils.setActiveSidebarItem('social_feed.php');
+
+            // Update navbar title
+            window.AppUtils.updateNavbarTitle('Social Feed');
+
+            // Initialize search for social feed if needed
+            const navbarSearchForm = document.getElementById('navbarSearchForm');
+            if (navbarSearchForm) {
+                navbarSearchForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const searchInput = document.getElementById('navbarSearchInput');
+                    if (searchInput.value.trim()) {
+                        searchPosts(e); // Use existing social feed search function
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 
 </html>

@@ -1,7 +1,10 @@
-<?php include 'assets/script/dashboard-script.php';?>
+<!-- file path: roles/superadmin/dashboard.php -->
+
+<?php include 'assets/script/dashboard-script.php'; ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +18,7 @@
             gap: 20px;
             margin: 20px 0;
         }
-        
+
         .stat-card {
             background: var(--light);
             border-radius: 15px;
@@ -23,14 +26,14 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s;
         }
-        
+
         .stat-card:hover {
             transform: translateY(-2px);
         }
-        
+
         .stat-icon {
             width: 50px;
             height: 50px;
@@ -41,27 +44,44 @@
             font-size: 24px;
             color: white;
         }
-        
-        .stat-icon.users { background: linear-gradient(45deg, #667eea, #764ba2); }
-        .stat-icon.files { background: linear-gradient(45deg, #f093fb, #f5576c); }
-        .stat-icon.folders { background: linear-gradient(45deg, #4facfe, #00f2fe); }
-        .stat-icon.departments { background: linear-gradient(45deg, #43e97b, #38f9d7); }
-        .stat-icon.announcements { background: linear-gradient(45deg, #fa709a, #fee140); }
-        .stat-icon.storage { background: linear-gradient(45deg, #a8edea, #fed6e3); }
-        
+
+        .stat-icon.users {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+
+        .stat-icon.files {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+        }
+
+        .stat-icon.folders {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+        }
+
+        .stat-icon.departments {
+            background: linear-gradient(45deg, #43e97b, #38f9d7);
+        }
+
+        .stat-icon.announcements {
+            background: linear-gradient(45deg, #fa709a, #fee140);
+        }
+
+        .stat-icon.storage {
+            background: linear-gradient(45deg, #a8edea, #fed6e3);
+        }
+
         .stat-info h3 {
             margin: 0;
             font-size: 24px;
             font-weight: 600;
             color: var(--dark);
         }
-        
+
         .stat-info p {
             margin: 5px 0 0 0;
             font-size: 14px;
             color: #666;
         }
-        
+
         .activity-item {
             display: flex;
             align-items: center;
@@ -69,11 +89,11 @@
             padding: 12px;
             border-bottom: 1px solid var(--grey);
         }
-        
+
         .activity-item:last-child {
             border-bottom: none;
         }
-        
+
         .activity-icon {
             width: 35px;
             height: 35px;
@@ -85,28 +105,28 @@
             justify-content: center;
             font-size: 16px;
         }
-        
+
         .activity-content {
             flex: 1;
         }
-        
+
         .activity-content h4 {
             margin: 0;
             font-size: 14px;
             font-weight: 500;
         }
-        
+
         .activity-content p {
             margin: 2px 0 0 0;
             font-size: 12px;
             color: #666;
         }
-        
+
         .activity-time {
             font-size: 12px;
             color: #999;
         }
-        
+
         .quick-action {
             background: var(--light);
             border-radius: 10px;
@@ -117,19 +137,19 @@
             transition: all 0.2s;
             border: 2px solid transparent;
         }
-        
+
         .quick-action:hover {
             border-color: var(--blue);
             transform: translateY(-2px);
         }
-        
+
         .quick-action i {
             font-size: 28px;
             margin-bottom: 8px;
             display: block;
             color: var(--blue);
         }
-        
+
         .alert {
             padding: 15px 20px;
             border-radius: 10px;
@@ -138,19 +158,19 @@
             align-items: center;
             gap: 10px;
         }
-        
+
         .alert.warning {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
             color: #856404;
         }
-        
+
         .alert.info {
             background: #d1ecf1;
             border: 1px solid #bee5eb;
             color: #0c5460;
         }
-        
+
         .department-progress {
             background: #f8f9fa;
             border-radius: 5px;
@@ -158,7 +178,7 @@
             margin: 5px 0;
             overflow: hidden;
         }
-        
+
         .department-progress-bar {
             height: 100%;
             background: linear-gradient(45deg, var(--blue), var(--light-blue));
@@ -166,103 +186,15 @@
         }
     </style>
 </head>
+
 <body>
-    <!-- Sidebar -->
-    <section id="sidebar">
-        <a href="#" class="brand">
-            <i class='bx bxs-dashboard'></i>
-            <span class="text">ODCI Admin</span>
-        </a>
-        <ul class="side-menu top">
-            <li class="active">
-                <a href="dashboard.php">
-                    <i class='bx bxs-dashboard'></i>
-                    <span class="text">Dashboard</span>
-                </a>
-            </li>
-            <li>
-                <a href="users.php">
-                    <i class='bx bxs-group'></i>
-                    <span class="text">Users</span>
-                </a>
-            </li>
-            <li>
-                <a href="departments.php">
-                    <i class='bx bxs-buildings'></i>
-                    <span class="text">Departments</span>
-                </a>
-            </li>
-            <li>
-                <a href="files.php">
-                    <i class='bx bxs-file'></i>
-                    <span class="text">Files</span>
-                </a>
-            </li>
-            <li>
-                <a href="folders.php">
-                    <i class='bx bxs-folder'></i>
-                    <span class="text">Folders</span>
-                </a>
-            </li>
-            <li>
-                <a href="social_feed.php">
-                    <i class='bx bx-news'></i>
-                    <span class="text">Social Feed</span>
-                </a>
-            </li>
-            <li>
-                <a href="reports.php">
-                    <i class='bx bxs-report'></i>
-                    <span class="text">Reports</span>
-                </a>
-            </li>
-        </ul>
-        <ul class="side-menu">
-            <li>
-                <a href="settings.php">
-                    <i class='bx bxs-cog'></i>
-                    <span class="text">System Settings</span>
-                </a>
-            </li>
-            <li>
-                <a href="activity_logs.php">
-                    <i class='bx bxs-time'></i>
-                    <span class="text">Activity Logs</span>
-                </a>
-            </li>
-            <li>
-                <a href="../../logout.php" class="logout">
-                    <i class='bx bxs-log-out-circle'></i>
-                    <span class="text">Logout</span>
-                </a>
-            </li>
-        </ul>
-    </section>
+    <!-- Sidebar Component -->
+    <?php include 'components/sidebar.html'; ?>
 
     <!-- Content -->
     <section id="content">
-        <!-- Navbar -->
-        <nav>
-            <i class='bx bx-menu'></i>
-            <a href="#" class="nav-link">System Overview</a>
-            <form action="#">
-                <div class="form-input">
-                    <input type="search" placeholder="Search users, files, folders...">
-                    <button type="submit" class="search-btn"><i class='bx bx-search'></i></button>
-                </div>
-            </form>
-            <input type="checkbox" id="switch-mode" hidden>
-            <label for="switch-mode" class="switch-mode"></label>
-            <a href="notifications.php" class="notification">
-                <i class='bx bxs-bell'></i>
-                <?php if ($stats['pending_users'] > 0): ?>
-                    <span class="num"><?php echo $stats['pending_users']; ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="profile.php" class="profile">
-                <img src="<?php echo $currentUser['profile_image'] ?? 'assets/img/default-avatar.png'; ?>" alt="Profile">
-            </a>
-        </nav>
+        <!-- Navbar Component -->
+        <?php include 'components/navbar.html'; ?>
 
         <!-- Main Content -->
         <main>
@@ -286,7 +218,8 @@
                 <div class="alert warning">
                     <i class='bx bxs-error-circle'></i>
                     <div>
-                        <strong>Pending Approvals:</strong> You have <?php echo $stats['pending_users']; ?> user registration(s) waiting for approval.
+                        <strong>Pending Approvals:</strong> You have <?php echo $stats['pending_users']; ?> user
+                        registration(s) waiting for approval.
                         <a href="users.php?filter=pending" style="color: var(--blue); margin-left: 10px;">Review Now</a>
                     </div>
                 </div>
@@ -384,7 +317,7 @@
                                     </div>
                                     <div class="activity-content">
                                         <h4>
-                                            <?php 
+                                            <?php
                                             if ($activity['name']) {
                                                 echo htmlspecialchars($activity['name'] . ' ' . ($activity['mi'] ? $activity['mi'] . '. ' : '') . $activity['surname']);
                                             } else {
@@ -394,7 +327,8 @@
                                         </h4>
                                         <p><?php echo getActionText($activity['action']); ?></p>
                                         <?php if ($activity['description']): ?>
-                                            <p style="margin-top: 3px; font-size: 11px;"><?php echo htmlspecialchars($activity['description']); ?></p>
+                                            <p style="margin-top: 3px; font-size: 11px;">
+                                                <?php echo htmlspecialchars($activity['description']); ?></p>
                                         <?php endif; ?>
                                     </div>
                                     <div class="activity-time">
@@ -475,11 +409,13 @@
                                         <td>
                                             <div>
                                                 <strong><?php echo htmlspecialchars($dept['department_code']); ?></strong>
-                                                <br><small style="color: #666;"><?php echo htmlspecialchars($dept['department_name']); ?></small>
+                                                <br><small
+                                                    style="color: #666;"><?php echo htmlspecialchars($dept['department_name']); ?></small>
                                             </div>
                                         </td>
                                         <td style="text-align: center;">
-                                            <span style="background: var(--light-blue); padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                                            <span
+                                                style="background: var(--light-blue); padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">
                                                 <?php echo $dept['user_count']; ?>
                                             </span>
                                         </td>
@@ -544,4 +480,5 @@
     <script src="assets/js/script.js"></script>
     <script src="assets/js/dashboard.js"></script>
 </body>
+
 </html>

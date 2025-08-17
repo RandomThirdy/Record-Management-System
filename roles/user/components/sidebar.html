@@ -1,0 +1,57 @@
+<?php
+$current_page = basename($_SERVER['PHP_SELF']);
+?>
+
+<!-- Sidebar -->
+<section id="sidebar">
+    <a href="#" class="brand">
+        <img src="../../img/cvsu-logo.png" alt="Logo" style="width: 30px; height: 30px; margin-left: 15px;">
+        <span class="text" style="margin-left: 6px;">ODCI</span>
+    </a>
+    <ul class="side-menu top">
+        <li class="<?= $current_page == 'dashboard.php' ? 'active' : '' ?>">
+            <a href="dashboard.php">
+                <i class='bx bxs-dashboard'></i>
+                <span class="text">Dashboard</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'files.php' ? 'active' : '' ?>">
+            <a href="files.php">
+                <i class='bx bxs-file'></i>
+                <span class="text">My Files</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'folders.php' ? 'active' : '' ?>">
+            <a href="folders.php">
+                <i class='bx bxs-folder'></i>
+                <span class="text">My Folders</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'submission_tracker.php' ? 'active' : '' ?>">
+            <a href="submission_tracker.php">
+                <i class='bx bxs-check-square'></i>
+                <span class="text">Submission Tracker</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'reports.php' ? 'active' : '' ?>">
+            <a href="reports.php">
+                <i class='bx bxs-folder'></i>
+                <span class="text">Reports</span>
+            </a>
+        </li>
+    </ul>
+    <ul class="side-menu">
+        <li class="<?= $current_page == 'settings.php' ? 'active' : '' ?>">
+            <a href="settings.php">
+                <i class='bx bxs-cog'></i>
+                <span class="text">Settings</span>
+            </a>
+        </li>
+        <li>
+            <a href="../../logout.php" class="logout">
+                <i class='bx bxs-log-out-circle'></i>
+                <span class="text">Logout</span>
+            </a>
+        </li>
+    </ul>
+</section>

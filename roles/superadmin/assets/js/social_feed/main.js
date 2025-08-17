@@ -1,4 +1,5 @@
 // social-feed-main.js
+
 // Main entry point that coordinates all modules and exposes global functions
 
 // Global function wrappers for HTML onclick handlers
