@@ -520,18 +520,6 @@
     text-align: center;
 }
 
-/* Notification styles */
-.notification {
-    font-family: 'Poppins', sans-serif;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-left: 4px solid rgba(255, 255, 255, 0.3);
-}
-
-.notification i {
-    flex-shrink: 0;
-}
 
 /* Custom scrollbar for files grid */
 .files-grid::-webkit-scrollbar {
