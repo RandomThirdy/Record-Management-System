@@ -377,8 +377,6 @@ $departmentConfig = [
 <body>
     <?php include 'components/sidebar.html'; ?>
 
-    
-
     <!-- Content -->
     <section id="content">
         <?php include 'components/navbar.html'; ?>
