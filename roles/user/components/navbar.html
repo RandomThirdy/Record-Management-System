@@ -12,14 +12,16 @@
         <i class='bx bxs-bell'></i>
         <span class="num">8</span>
     </a>
-    <a href="#" class="profile" title="<?php echo htmlspecialchars($currentUser['full_name'] . ($departmentCode ? ' - ' . $departmentCode : '')); ?>">
-        <?php if ($departmentImage && file_exists($departmentImage)): ?>
-            <img src="<?php echo htmlspecialchars($departmentImage); ?>" alt="<?php echo htmlspecialchars($departmentCode . ' Profile'); ?>" style="width: 36px; height: 36px;">
+    <a href="#" class="profile" title="<?php echo htmlspecialchars(($currentUser['name'] ?? 'User') . ' ' . ($currentUser['surname'] ?? '') . (isset($departmentCode) && $departmentCode ? ' - ' . $departmentCode : '')); ?>">
+        <?php if (isset($departmentImage) && $departmentImage && file_exists($departmentImage)): ?>
+            <img src="<?php echo htmlspecialchars($departmentImage); ?>" alt="<?php echo htmlspecialchars((isset($departmentCode) ? $departmentCode : 'User') . ' Profile'); ?>" style="width: 36px; height: 36px;">
         <?php else: ?>
             <div class="profile-icon">
-                <?php echo getUserInitials($currentUser['full_name']); ?>
+                <?php 
+                $fullName = ($currentUser['name'] ?? 'User') . ' ' . ($currentUser['surname'] ?? '');
+                echo getUserInitials($fullName); 
+                ?>
             </div>
         <?php endif; ?>
     </a>
 </nav>
-
