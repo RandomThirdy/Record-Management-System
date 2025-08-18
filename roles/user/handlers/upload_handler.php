@@ -52,9 +52,34 @@ try {
     $departmentId = (int)$_POST['department'];
     $category = $_POST['category'];
     $semester = $_POST['semester'];
+    
+    
+    // Improved academic year handling
+    if (isset($_POST['academic_year']) && !empty(trim($_POST['academic_year']))) {
+    $academicYear = trim($_POST['academic_year']);
+} else {
+    // Only use fallback logic if academic_year is truly empty or not provided
+    $currentYear = date('Y');
+    $currentMonth = date('n');
+    
+    // If we're in August or later, it's the new academic year
+    // Otherwise, we're still in the previous academic year
+    if ($currentMonth >= 8) {
+        $academicYear = $currentYear . '-' . ($currentYear + 1);
+    } else {
+        $academicYear = ($currentYear - 1) . '-' . $currentYear;
+    }
+}
+
     $description = $_POST['description'] ?? '';
     $tags = isset($_POST['tags']) ? json_decode($_POST['tags'], true) : [];
-    
+
+    // Validate academic year format
+    if (!preg_match('/^\d{4}-\d{4}$/', $academicYear)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid academic year format']);
+        exit();
+    }
+
     // SECURITY CHECK: User can only upload to their own department
     if ($departmentId != $userDepartmentId) {
         http_response_code(403);
@@ -91,15 +116,15 @@ try {
         exit();
     }
 
-    // Create or get category folder for the specific semester
-    $folderId = getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $currentUser['id'], $userDepartmentId);
+    // FIXED: Pass academicYear to the folder creation function
+    $folderId = getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $academicYear, $currentUser['id'], $userDepartmentId);
     if (!$folderId) {
         echo json_encode(['success' => false, 'message' => 'Failed to create category folder']);
         exit();
     }
 
-    // Create upload directory if it doesn't exist
-    $uploadDir = "../../uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/";
+    // Create upload directory with academic year in path
+    $uploadDir = "../../uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/" . $academicYear . "/";
     if (!is_dir($uploadDir)) {
         if (!mkdir($uploadDir, 0755, true)) {
             echo json_encode(['success' => false, 'message' => 'Failed to create upload directory']);
@@ -135,14 +160,15 @@ try {
                 // Calculate file hash for duplicate detection
                 $fileHash = hash_file('sha256', $filePath);
                 
-                // Check for duplicates
+                // Check for duplicates - also check academic year
                 $stmt = $pdo->prepare("
                     SELECT f.id, f.original_name 
                     FROM files f 
                     INNER JOIN folders fo ON f.folder_id = fo.id
-                    WHERE f.file_hash = ? AND fo.department_id = ? AND fo.category = ? AND f.is_deleted = 0
+                    WHERE f.file_hash = ? AND fo.department_id = ? AND fo.category = ? 
+                    AND f.academic_year = ? AND f.semester = ? AND f.is_deleted = 0
                 ");
-                $stmt->execute([$fileHash, $departmentId, $category]);
+                $stmt->execute([$fileHash, $departmentId, $category, $academicYear, $semester]);
                 $duplicate = $stmt->fetch();
                 
                 if ($duplicate) {
@@ -162,11 +188,11 @@ try {
                     INSERT INTO files (
                         file_name, original_name, file_path, file_size, file_type, 
                         mime_type, file_extension, uploaded_by, folder_id, 
-                        file_hash, tags, description, uploaded_at, download_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
+                        file_hash, tags, description, academic_year, semester, uploaded_at, download_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
                 ");
                 
-                $relativePath = "uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/" . $fileName;
+                $relativePath = "uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/" . $academicYear . "/" . $fileName;
                 $tagsJson = !empty($tags) ? json_encode($tags) : null;
                 
                 $stmt->execute([
@@ -181,7 +207,9 @@ try {
                     $folderId,
                     $fileHash,
                     $tagsJson,
-                    $description
+                    $description,
+                    $academicYear,
+                    $semester
                 ]);
                 
                 $uploadedFiles[] = [
@@ -189,7 +217,8 @@ try {
                     'name' => $originalName,
                     'size' => $fileSize,
                     'category' => $category,
-                    'semester' => $semester
+                    'semester' => $semester,
+                    'academic_year' => $academicYear
                 ];
 
                 // Update folder file count and size
@@ -218,11 +247,12 @@ try {
     if (!empty($uploadedFiles)) {
         $response = [
             'success' => true,
-            'message' => count($uploadedFiles) . ' files uploaded successfully to ' . ucfirst(str_replace('_', ' ', $category)) . ' - ' . ucfirst($semester) . ' Semester',
+            'message' => count($uploadedFiles) . ' files uploaded successfully to ' . ucfirst(str_replace('_', ' ', $category)) . ' - ' . ucfirst($semester) . ' Semester (' . $academicYear . ')',
             'uploaded_files' => $uploadedFiles,
             'departmentId' => $departmentId,
             'category' => $category,
-            'semester' => $semester
+            'semester' => $semester,
+            'academic_year' => $academicYear
         ];
         
         if (!empty($errors)) {
@@ -262,8 +292,8 @@ function updateFolderStats($pdo, $folderId) {
     }
 }
 
-// Helper function to get or create category folder
-function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $userId, $userDepartmentId) {
+// FIXED: Helper function to get or create category folder - now accepts academic year parameter
+function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $academicYear, $userId, $userDepartmentId) {
     // Security check: ensure user can only create folders in their own department
     if ($departmentId != $userDepartmentId) {
         throw new Exception("Access denied: Cannot create folder in different department");
@@ -271,10 +301,9 @@ function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $u
     
     try {
         $semesterName = ($semester === 'first') ? 'First Semester' : 'Second Semester';
-        $academicYear = date('Y') . '-' . (date('Y') + 1);
         $folderName = $academicYear . ' - ' . $semesterName;
         
-        // Check if folder exists for this category and semester
+        // Check if folder exists for this category, semester, and academic year
         $stmt = $pdo->prepare("
             SELECT id FROM folders 
             WHERE department_id = ? 
@@ -318,7 +347,7 @@ function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $u
         
         $categoryDisplayName = $categoryNames[$category] ?? ucfirst(str_replace('_', ' ', $category));
         $description = "{$categoryDisplayName} files for {$semesterName} {$academicYear}";
-        $folderPath = "/departments/{$departmentId}/{$category}/{$semester}";
+        $folderPath = "/departments/{$departmentId}/{$category}/{$semester}/{$academicYear}";
         
         $stmt->execute([
             $folderName, 

@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } elseif ($user['role'] === 'admin') {
                         header('Location: roles/admin/dashboard.php');
                     } elseif ($user['role'] === 'user') {
-                        header('Location: roles/user/dashboard.php');
+                        header('Location: roles/user/social_feed.php');
                     } else {
                         header('Location: login.php?error=invalid_role');
                     }

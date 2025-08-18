@@ -430,7 +430,7 @@ if ($userDepartment) {
         <main>
             <div class="head-title">
                 <div class="left">
-                    <h1>Submission Tracker</h1>
+                    <h1>My Files</h1>
                     <ul class="breadcrumb">
                         <li>
                             <a href="dashboard.php">Dashboard</a>
@@ -441,10 +441,6 @@ if ($userDepartment) {
                         </li>
                     </ul>
                 </div>
-                <button onclick="window.location.href='folders.php'" class="upload-btn">
-                    <i class='bx bxs-cloud-upload'></i>
-                    <span class="text">Upload Files</span>
-                </button>
             </div>
 
             <!-- Stats Overview -->

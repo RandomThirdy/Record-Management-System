@@ -375,12 +375,17 @@ function getUserInitials($fullName) {
                             <i class='bx bxs-book' style="color: #10b981; margin-right: 8px;"></i>
                             Academic Year
                         </label>
-                        <select name="academic_year" required 
-                            style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" 
+                        <select name="academic_year" required style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" 
                             onfocus="this.style.borderColor='#10b981'" 
                             onblur="this.style.borderColor='#e5e7eb'">
-
                             <option value="">Select academic year...</option>
+                            <?php 
+                                $currentYear = date("Y");
+                                for ($i = $currentYear; $i >= $currentYear - 5; $i--) {
+                                    $nextYear = $i + 1;
+                                    echo "<option value='{$i}-{$nextYear}'>{$i} - {$nextYear}</option>";
+                                }
+                            ?>
                         </select>
                     </div>            
                 <!-- Semester Selection -->
