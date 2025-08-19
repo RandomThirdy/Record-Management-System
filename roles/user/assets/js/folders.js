@@ -1,8 +1,9 @@
-// ODCI/roles/user/assets/js/folders.js
+// ODCI/roles/user/assets/js/folders.js - Fixed version
 
 // Global variables
 let selectedFiles = [];
 let selectedTags = [];
+let isUploading = false; // FIX: Add upload state tracking
 const userDepartmentId = window.userDepartmentId || null;
 const fileCategories = window.fileCategories || {};
 
@@ -10,6 +11,13 @@ const fileCategories = window.fileCategories || {};
 function openUploadModal() {
     const modal = document.getElementById('uploadModal');
     const container = document.getElementById('modalContainer');
+    
+    // Populate academic years when modal opens
+    populateAcademicYears();
+    
+    // Auto-select current semester
+    autoSelectCurrentSemester();
+    
     modal.style.opacity = '1';
     modal.style.visibility = 'visible';
     setTimeout(() => {
@@ -31,12 +39,15 @@ function closeUploadModal() {
 }
 
 function handleFileSelect(files) {
+    if (isUploading) return; // FIX: Prevent file selection during upload
     selectedFiles = Array.from(files);
     displayFilePreview();
 }
 
 function handleDrop(event) {
     event.preventDefault();
+    if (isUploading) return; // FIX: Prevent drops during upload
+    
     const dropZone = event.target;
     dropZone.style.borderColor = '#10b981';
     dropZone.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
@@ -67,7 +78,7 @@ function displayFilePreview() {
                             <div style="font-size: 12px; color: #6b7280;">${formatFileSize(file.size)}</div>
                         </div>
                     </div>
-                    <button type="button" onclick="removeFile(${index})" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; padding: 6px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
+                    <button type="button" onclick="removeFile(${index})" ${isUploading ? 'disabled' : ''} style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; padding: 6px; cursor: ${isUploading ? 'not-allowed' : 'pointer'}; transition: all 0.3s ease; opacity: ${isUploading ? '0.5' : '1'};" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
                         <i class='bx bx-x' style="font-size: 16px;"></i>
                     </button>
                 </div>
@@ -82,6 +93,7 @@ function displayFilePreview() {
 }
 
 function removeFile(index) {
+    if (isUploading) return; // FIX: Prevent file removal during upload
     selectedFiles.splice(index, 1);
     displayFilePreview();
 }
@@ -120,6 +132,7 @@ function formatFileSize(bytes) {
 }
 
 function addTag(tag) {
+    if (isUploading) return; // FIX: Prevent tag changes during upload
     if (!selectedTags.includes(tag)) {
         selectedTags.push(tag);
         displaySelectedTags();
@@ -128,6 +141,7 @@ function addTag(tag) {
 }
 
 function addCustomTag() {
+    if (isUploading) return; // FIX: Prevent tag changes during upload
     const input = document.getElementById('customTag');
     const tag = input.value.trim();
     if (tag && !selectedTags.includes(tag)) {
@@ -145,7 +159,7 @@ function displaySelectedTags() {
         html += `
             <div style="background: #10b981; color: white; border-radius: 16px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
                 ${tag}
-                <button type="button" onclick="removeTag(${index})" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;">
+                <button type="button" onclick="removeTag(${index})" ${isUploading ? 'disabled' : ''} style="background: none; border: none; color: white; cursor: ${isUploading ? 'not-allowed' : 'pointer'}; font-size: 14px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; opacity: ${isUploading ? '0.5' : '1'};">
                     <i class='bx bx-x'></i>
                 </button>
             </div>
@@ -155,6 +169,7 @@ function displaySelectedTags() {
 }
 
 function removeTag(index) {
+    if (isUploading) return; // FIX: Prevent tag removal during upload
     selectedTags.splice(index, 1);
     displaySelectedTags();
     updateTagsInput();
@@ -168,8 +183,12 @@ function updateTagsInput() {
 }
 
 function resetForm() {
+    if (isUploading) return; // FIX: Prevent form reset during upload
+    
     selectedFiles = [];
     selectedTags = [];
+    isUploading = false; // FIX: Reset upload state
+    
     const form = document.getElementById('uploadForm');
     if (form) form.reset();
     
@@ -410,6 +429,144 @@ function downloadFile(fileId, fileName) {
     document.body.removeChild(link);
 }
 
+// FIX: Enhanced upload form handler with duplicate prevention
+function initializeUploadForm() {
+    const uploadForm = document.getElementById('uploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // FIX: Prevent multiple submissions
+            if (isUploading) {
+                console.log('Upload already in progress, preventing duplicate submission');
+                return false;
+            }
+            
+            const category = document.querySelector('select[name="category"]')?.value;
+            const academicYear = document.querySelector('select[name="academic_year"]')?.value;
+            const semester = document.querySelector('input[name="semester"]:checked')?.value;
+            const description = document.getElementById('fileDescription')?.value || '';
+            
+            // Enhanced validation
+            if (!category) {
+                alert('Please select a file category.');
+                return false;
+            }
+            
+            if (!validateAcademicPeriod()) {
+                return false;
+            }
+            
+            if (selectedFiles.length === 0) {
+                alert('Please select at least one file to upload.');
+                return false;
+            }
+            
+            // FIX: Set uploading state and disable form elements
+            isUploading = true;
+            disableFormElements(true);
+            
+            // Show progress
+            const uploadProgress = document.getElementById('uploadProgress');
+            if (uploadProgress) {
+                uploadProgress.style.display = 'block';
+            }
+            
+            const formData = new FormData();
+            formData.append('department', userDepartmentId); 
+            formData.append('category', category);
+            formData.append('academic_year', academicYear);
+            formData.append('semester', semester);
+            formData.append('description', description);
+            formData.append('tags', JSON.stringify(selectedTags));
+            
+            // FIX: Append files properly
+            selectedFiles.forEach((file, index) => {
+                formData.append('files[]', file);
+            });
+            
+            // FIX: Enhanced fetch with better error handling
+            fetch('handlers/upload_handler.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Show success message with details
+                    let message = data.message || 'Files uploaded successfully!';
+                    if (data.warnings && data.warnings.length > 0) {
+                        message += '\n\nWarnings:\n' + data.warnings.join('\n');
+                    }
+                    alert(message);
+                    
+                    closeUploadModal();
+                    
+                    // Refresh the category counts and files
+                    if (userDepartmentId) {
+                        loadDepartmentCategories(userDepartmentId);
+                        if (data.category) {
+                            loadCategoryFiles(userDepartmentId, data.category);
+                        }
+                    }
+                } else {
+                    // Show detailed error message
+                    let errorMessage = 'Upload failed: ' + (data.message || 'Unknown error');
+                    if (data.errors && data.errors.length > 0) {
+                        errorMessage += '\n\nDetailed errors:\n' + data.errors.join('\n');
+                    }
+                    alert(errorMessage);
+                }
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                alert('Upload failed. Please check your connection and try again.\n\nError: ' + error.message);
+            })
+            .finally(() => {
+                // FIX: Always reset upload state and re-enable form
+                isUploading = false;
+                disableFormElements(false);
+                
+                const uploadProgress = document.getElementById('uploadProgress');
+                if (uploadProgress) {
+                    uploadProgress.style.display = 'none';
+                }
+            });
+            
+            // Simulate progress for visual feedback
+            simulateUpload();
+            
+            return false; // Prevent default form submission
+        });
+    }
+}
+
+// FIX: Helper function to disable/enable form elements during upload
+function disableFormElements(disabled) {
+    // Disable/enable all form inputs
+    const formElements = document.querySelectorAll('#uploadForm input, #uploadForm select, #uploadForm textarea, #uploadForm button');
+    formElements.forEach(element => {
+        element.disabled = disabled;
+        if (disabled) {
+            element.style.opacity = '0.6';
+            element.style.cursor = 'not-allowed';
+        } else {
+            element.style.opacity = '1';
+            element.style.cursor = '';
+        }
+    });
+    
+    // Update file preview to reflect disabled state
+    if (selectedFiles.length > 0) {
+        displayFilePreview();
+    }
+}
+
 // Sidebar functionality
 function initializeSidebar() {
     const allSideMenu = document.querySelectorAll('#sidebar .side-menu.top li a');
@@ -543,79 +700,13 @@ function initializeDepartmentSearch() {
     }
 }
 
-// Upload form handler
-function initializeUploadForm() {
-    const uploadForm = document.getElementById('uploadForm');
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const category = document.querySelector('select[name="category"]')?.value;
-            const semester = document.querySelector('input[name="semester"]:checked')?.value;
-            const description = document.getElementById('fileDescription')?.value || '';
-            
-            if (!category || !semester || selectedFiles.length === 0) {
-                alert('Please select a category, semester, and at least one file.');
-                return;
-            }
-            
-            // Show progress
-            const uploadProgress = document.getElementById('uploadProgress');
-            if (uploadProgress) {
-                uploadProgress.style.display = 'block';
-            }
-            
-            const formData = new FormData();
-            formData.append('department', userDepartmentId); 
-            formData.append('category', category);
-            formData.append('semester', semester);
-            formData.append('description', description);
-            formData.append('tags', JSON.stringify(selectedTags));
-            
-            selectedFiles.forEach((file, index) => {
-                formData.append('files[]', file);
-            });
-            
-            fetch('handlers/upload_handler.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Files uploaded successfully!');
-                    closeUploadModal();
-                    // Refresh the category counts and files
-                    loadDepartmentCategories(userDepartmentId);
-                    loadCategoryFiles(userDepartmentId, category);
-                } else {
-                    alert('Upload failed: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Upload failed. Please try again.');
-            })
-            .finally(() => {
-                const uploadProgress = document.getElementById('uploadProgress');
-                if (uploadProgress) {
-                    uploadProgress.style.display = 'none';
-                }
-            });
-            
-            // Simulate progress for demo
-            simulateUpload();
-        });
-    }
-}
-
 // Modal event listeners
 function initializeModalEvents() {
     // Close modal when clicking outside
     const uploadModal = document.getElementById('uploadModal');
     if (uploadModal) {
         uploadModal.addEventListener('click', function(e) {
-            if (e.target === this) {
+            if (e.target === this && !isUploading) { // FIX: Prevent closing during upload
                 closeUploadModal();
             }
         });
@@ -623,7 +714,7 @@ function initializeModalEvents() {
 
     // Handle keyboard shortcuts
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' && !isUploading) { // FIX: Prevent closing during upload
             closeUploadModal();
         }
     });
@@ -632,7 +723,9 @@ function initializeModalEvents() {
     const fileInput = document.getElementById('fileInput');
     if (fileInput) {
         fileInput.addEventListener('change', function() {
-            handleFileSelect(this.files);
+            if (!isUploading) { // FIX: Prevent file selection during upload
+                handleFileSelect(this.files);
+            }
         });
     }
 
@@ -640,19 +733,25 @@ function initializeModalEvents() {
     const dropZone = document.getElementById('dropZone');
     if (dropZone) {
         dropZone.addEventListener('click', function() {
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) fileInput.click();
+            if (!isUploading) { // FIX: Prevent file selection during upload
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) fileInput.click();
+            }
         });
 
         dropZone.addEventListener('dragover', function(event) {
-            event.preventDefault();
-            this.style.borderColor = '#059669';
-            this.style.background = '#d1fae5';
+            if (!isUploading) { // FIX: Prevent drag operations during upload
+                event.preventDefault();
+                this.style.borderColor = '#059669';
+                this.style.background = '#d1fae5';
+            }
         });
 
         dropZone.addEventListener('dragleave', function() {
-            this.style.borderColor = '#10b981';
-            this.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
+            if (!isUploading) {
+                this.style.borderColor = '#10b981';
+                this.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
+            }
         });
 
         dropZone.addEventListener('drop', handleDrop);
@@ -662,7 +761,7 @@ function initializeModalEvents() {
     const customTagInput = document.getElementById('customTag');
     if (customTagInput) {
         customTagInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
+            if (event.key === 'Enter' && !isUploading) { // FIX: Prevent tag addition during upload
                 event.preventDefault();
                 addCustomTag();
             }
@@ -670,9 +769,229 @@ function initializeModalEvents() {
     }
 }
 
+// Function to populate academic year dropdown
+// Function to populate academic year dropdown - Updated to start from 2019-2020
+function populateAcademicYears() {
+    const academicYearSelect = document.querySelector('select[name="academic_year"]');
+    if (!academicYearSelect) return;
+
+    // Clear existing options except the first one
+    academicYearSelect.innerHTML = '<option value="">Select academic year...</option>';
+
+    // Generate academic years starting from 2019-2020 up to current year + 3
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1; // 1-12
+
+    // Determine the current academic year based on the month
+    let currentAcademicStartYear;
+    if (currentMonth >= 8) { // August or later
+        currentAcademicStartYear = currentYear;
+    } else {
+        currentAcademicStartYear = currentYear - 1;
+    }
+
+    // Start from 2019 and go up to current year + 3
+    const startYear = 2019;
+    const endYear = currentYear + 3;
+
+    // Generate academic year options
+    for (let year = startYear; year <= endYear; year++) {
+        const academicYear = `${year}-${year + 1}`;
+        
+        const option = document.createElement('option');
+        option.value = academicYear;
+        option.textContent = `${academicYear} Academic Year`;
+        
+        // Mark current academic year as selected by default
+        if (year === currentAcademicStartYear) {
+            option.selected = true;
+        }
+        
+        academicYearSelect.appendChild(option);
+    }
+}
+
+// Function to get current academic year automatically
+function getCurrentAcademicYear() {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1; // 1-12
+
+    // If we're in August or later, it's the new academic year
+    // Otherwise, we're still in the previous academic year
+    if (currentMonth >= 8) {
+        return `${currentYear}-${currentYear + 1}`;
+    } else {
+        return `${currentYear - 1}-${currentYear}`;
+    }
+}
+
+// Function to get current semester automatically
+function getCurrentSemester() {
+    const currentMonth = new Date().getMonth() + 1; // 1-12
+
+    // First semester typically runs from August to December
+    // Second semester typically runs from January to May
+    // June-July is usually summer/break
+    if (currentMonth >= 8 && currentMonth <= 12) {
+        return 'first';
+    } else if (currentMonth >= 1 && currentMonth <= 5) {
+        return 'second';
+    } else {
+        // Default to first semester during summer months
+        return 'first';
+    }
+}
+
+// Function to auto-select current semester
+function autoSelectCurrentSemester() {
+    const currentSemester = getCurrentSemester();
+    const semesterRadio = document.querySelector(`input[name="semester"][value="${currentSemester}"]`);
+    if (semesterRadio) {
+        semesterRadio.checked = true;
+    }
+}
+
+// Function to validate academic year and semester combination
+function validateAcademicPeriod() {
+    const academicYearSelect = document.querySelector('select[name="academic_year"]');
+    const semesterInputs = document.querySelectorAll('input[name="semester"]');
+    
+    const academicYear = academicYearSelect?.value;
+    const semester = Array.from(semesterInputs).find(input => input.checked)?.value;
+    
+    if (!academicYear) {
+        alert('Please select an academic year.');
+        return false;
+    }
+    
+    if (!semester) {
+        alert('Please select a semester.');
+        return false;
+    }
+    
+    // Validate academic year format
+    const academicYearPattern = /^\d{4}-\d{4}$/;
+    if (!academicYearPattern.test(academicYear)) {
+        alert('Invalid academic year format. Please select a valid academic year.');
+        return false;
+    }
+    
+    // Additional validation: check if the years are consecutive
+    const [startYear, endYear] = academicYear.split('-').map(Number);
+    if (endYear - startYear !== 1) {
+        alert('Invalid academic year. The end year should be exactly one year after the start year.');
+        return false;
+    }
+    
+    return true;
+}
+
+// Function to add visual feedback for semester selection
+function initializeSemesterSelection() {
+    const semesterInputs = document.querySelectorAll('input[name="semester"]');
+    
+    semesterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            // Remove active class from all labels
+            semesterInputs.forEach(radio => {
+                const label = radio.closest('label');
+                if (label) {
+                    label.style.borderColor = '#e5e7eb';
+                    label.style.background = 'white';
+                    label.style.transform = 'scale(1)';
+                }
+            });
+            
+            // Add active styling to selected option
+            if (this.checked) {
+                const label = this.closest('label');
+                if (label) {
+                    label.style.borderColor = '#10b981';
+                    label.style.background = '#f0fdf4';
+                    label.style.transform = 'scale(1.02)';
+                }
+            }
+        });
+    });
+}
+
+// Function to add visual feedback for academic year selection
+function initializeAcademicYearSelection() {
+    const academicYearSelect = document.querySelector('select[name="academic_year"]');
+    
+    if (academicYearSelect) {
+        academicYearSelect.addEventListener('change', function() {
+            // Visual feedback when academic year is selected
+            if (this.value) {
+                this.style.borderColor = '#10b981';
+                this.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+            } else {
+                this.style.borderColor = '#e5e7eb';
+                this.style.boxShadow = 'none';
+            }
+        });
+    }
+}
+
+// Function to show academic period summary
+function showAcademicPeriodSummary() {
+    const academicYearSelect = document.querySelector('select[name="academic_year"]');
+    const semesterInputs = document.querySelectorAll('input[name="semester"]');
+    
+    function updateSummary() {
+        const academicYear = academicYearSelect?.value;
+        const semester = Array.from(semesterInputs).find(input => input.checked)?.value;
+        
+        // Find or create summary element
+        let summaryElement = document.getElementById('academicPeriodSummary');
+        if (!summaryElement) {
+            summaryElement = document.createElement('div');
+            summaryElement.id = 'academicPeriodSummary';
+            summaryElement.style.cssText = `
+                margin-top: 12px;
+                padding: 12px;
+                background: rgba(16, 185, 129, 0.1);
+                border-radius: 8px;
+                border-left: 4px solid #10b981;
+                font-size: 12px;
+                color: #065f46;
+            `;
+            
+            // Insert after semester selection
+            const semesterDiv = document.querySelector('input[name="semester"]').closest('div').closest('div');
+            if (semesterDiv) {
+                semesterDiv.appendChild(summaryElement);
+            }
+        }
+        
+        if (academicYear && semester) {
+            const semesterText = semester === 'first' ? 'First Semester' : 'Second Semester';
+            summaryElement.innerHTML = `
+                <i class='bx bx-info-circle' style="margin-right: 6px;"></i>
+                Files will be organized under: <strong>${academicYear} - ${semesterText}</strong>
+            `;
+            summaryElement.style.display = 'block';
+        } else {
+            summaryElement.style.display = 'none';
+        }
+    }
+    
+    // Add event listeners
+    if (academicYearSelect) {
+        academicYearSelect.addEventListener('change', updateSummary);
+    }
+    
+    semesterInputs.forEach(input => {
+        input.addEventListener('change', updateSummary);
+    });
+    
+    // Initial update
+    updateSummary();
+}
+
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all components
+    // Initialize all existing components
     initializeSidebar();
     initializeSearch();
     initializeDarkMode();
@@ -680,17 +999,25 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeDepartmentSearch();
     initializeUploadForm();
     initializeModalEvents();
+    
+    // Initialize new academic period functionality
+    initializeSemesterSelection();
+    initializeAcademicYearSelection();
+    showAcademicPeriodSummary();
 
     // Auto-load user's department on page load
     if (userDepartmentId) {
-        // Auto-expand user's department after a short delay
         setTimeout(() => {
             toggleDepartment(userDepartmentId);
         }, 500);
     }
 });
 
-// Make functions available globally for onclick handlers
+// Make enhanced functions available globally
+window.populateAcademicYears = populateAcademicYears;
+window.getCurrentAcademicYear = getCurrentAcademicYear;
+window.getCurrentSemester = getCurrentSemester;
+window.validateAcademicPeriod = validateAcademicPeriod;
 window.openUploadModal = openUploadModal;
 window.closeUploadModal = closeUploadModal;
 window.handleDrop = handleDrop;

@@ -240,6 +240,45 @@ function getSubmissionStats($pdo, $userId, $userDepartmentId, $category = null, 
     }
 }
 
+function getAvailableAcademicYears($pdo, $userDepartmentId) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT 
+                SUBSTRING_INDEX(f.folder_name, ' - ', 1) as academic_year
+            FROM folders f
+            WHERE f.department_id = ? 
+            AND f.is_deleted = 0
+            AND f.folder_name REGEXP '^[0-9]{4}-[0-9]{4}'
+            ORDER BY academic_year DESC
+        ");
+        
+        $stmt->execute([$userDepartmentId]);
+        $years = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // If no years found in database, generate current and next academic year
+        if (empty($years)) {
+            $currentYear = date('Y');
+            $nextYear = $currentYear + 1;
+            $years = [
+                $currentYear . '-' . $nextYear,
+                ($currentYear - 1) . '-' . $currentYear
+            ];
+        }
+        
+        return $years;
+    } catch(Exception $e) {
+        error_log("Error fetching academic years: " . $e->getMessage());
+        // Fallback to current academic year
+        $currentYear = date('Y');
+        $nextYear = $currentYear + 1;
+        return [$currentYear . '-' . $nextYear];
+    }
+}
+
+// Add this line after your existing data fetching
+$availableAcademicYears = getAvailableAcademicYears($pdo, $userDepartmentId);
+
+
 // Get recent submissions
 function getRecentSubmissions($pdo, $userId, $userDepartmentId, $limit = 10) {
     try {
@@ -430,14 +469,14 @@ if ($userDepartment) {
         <main>
             <div class="head-title">
                 <div class="left">
-                    <h1>My Files</h1>
+                    <h1>My Tracker</h1>
                     <ul class="breadcrumb">
                         <li>
                             <a href="dashboard.php">Dashboard</a>
                         </li>
                         <li><i class='bx bx-chevron-right'></i></li>
                         <li>
-                            <a class="" href="#">Submission Tracker</a>
+                            <a class="" href="#">My Tracker</a>
                         </li>
                     </ul>
                 </div>
@@ -530,11 +569,8 @@ if ($userDepartment) {
                     <button class="filter-tab" onclick="showSection('completed')">
                         <i class='bx bx-check-circle'></i> Completed
                     </button>
-                    <button class="filter-tab" onclick="showSection('recent')">
-                        <i class='bx bx-history'></i> Recent Activity
-                    </button>
+                   
                 </div>
-                
                 <div class="filter-controls">
                     <div class="search-box">
                         <i class='bx bx-search'></i>
@@ -550,6 +586,12 @@ if ($userDepartment) {
                         <option value="">All Semesters</option>
                         <option value="first">First Semester</option>
                         <option value="second">Second Semester</option>
+                    </select>
+                     <select id="academicYearFilter" class="filter-select">
+                        <option value="">All Academic Years</option>
+                        <?php foreach ($availableAcademicYears as $year): ?>
+                            <option value="<?php echo htmlspecialchars($year); ?>"><?php echo htmlspecialchars($year); ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
             </div>
@@ -747,61 +789,6 @@ if ($userDepartment) {
                                 </div>
                             <?php endif; ?>
                         <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div id="recent-section" class="content-section">
-                <div class="section-header">
-                    <h3><i class='bx bxs-history'></i> Recent Activity</h3>
-                    <p>Your latest file submissions and uploads</p>
-                </div>
-                
-                <div class="recent-activity">
-                    <?php if (empty($recentSubmissions)): ?>
-                        <div class="empty-state">
-                            <i class='bx bx-history empty-icon'></i>
-                            <h4>No recent activity</h4>
-                            <p>Your recent file uploads and submissions will appear here.</p>
-                        </div>
-                    <?php else: ?>
-                        <div class="activity-timeline">
-                            <?php foreach ($recentSubmissions as $submission): ?>
-                                <div class="activity-item">
-                                    <div class="activity-icon">
-                                        <i class='bx <?php echo getFileIcon($submission['file_name']); ?>'></i>
-                                    </div>
-                                    <div class="activity-content">
-                                        <div class="activity-main">
-                                            <div class="activity-title">
-                                                <?php echo htmlspecialchars($submission['file_name']); ?>
-                                            </div>
-                                            <div class="activity-meta">
-                                                <span class="category-tag" style="background-color: <?php echo $fileCategories[$submission['category']]['color']; ?>20; color: <?php echo $fileCategories[$submission['category']]['color']; ?>">
-                                                    <?php echo htmlspecialchars($fileCategories[$submission['category']]['name']); ?>
-                                                </span>
-                                                <span class="file-size"><?php echo formatFileSize($submission['file_size']); ?></span>
-                                            </div>
-                                        </div>
-                                        <div class="activity-details">
-                                            <div class="folder-info">
-                                                <i class='bx bx-folder'></i>
-                                                <span><?php echo htmlspecialchars($submission['folder_name']); ?></span>
-                                            </div>
-                                            <div class="upload-time">
-                                                <i class='bx bx-time'></i>
-                                                <span><?php echo date('M j, Y g:i A', strtotime($submission['uploaded_at'])); ?></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="activity-status">
-                                        <div class="status-badge completed">
-                                            <i class='bx bx-check'></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
                     <?php endif; ?>
                 </div>
             </div>

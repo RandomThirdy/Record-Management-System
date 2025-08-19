@@ -1,5 +1,5 @@
 <?php
-// ODCI/roles/user/handlers/upload_handler.php
+// Enhanced upload_handler.php with proper academic year handling
 require_once '../../../includes/config.php';
 
 // Set JSON response header
@@ -43,40 +43,50 @@ if (!$userDepartmentId) {
 }
 
 try {
-    // Validate input
-    if (!isset($_POST['department']) || !isset($_POST['category']) || !isset($_POST['semester']) || !isset($_FILES['files'])) {
+    // Validate input - FIX: Check if files array exists and is not empty
+    if (!isset($_POST['department']) || !isset($_POST['category']) || 
+        !isset($_POST['semester']) || !isset($_POST['academic_year'])) {
         echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+        exit();
+    }
+
+    // FIX: Proper file validation
+    if (!isset($_FILES['files']) || !is_array($_FILES['files']['name']) || empty($_FILES['files']['name'][0])) {
+        echo json_encode(['success' => false, 'message' => 'No files selected for upload']);
         exit();
     }
 
     $departmentId = (int)$_POST['department'];
     $category = $_POST['category'];
     $semester = $_POST['semester'];
-    
-    
-    // Improved academic year handling
-    if (isset($_POST['academic_year']) && !empty(trim($_POST['academic_year']))) {
     $academicYear = trim($_POST['academic_year']);
-} else {
-    // Only use fallback logic if academic_year is truly empty or not provided
-    $currentYear = date('Y');
-    $currentMonth = date('n');
-    
-    // If we're in August or later, it's the new academic year
-    // Otherwise, we're still in the previous academic year
-    if ($currentMonth >= 8) {
-        $academicYear = $currentYear . '-' . ($currentYear + 1);
-    } else {
-        $academicYear = ($currentYear - 1) . '-' . $currentYear;
-    }
-}
-
     $description = $_POST['description'] ?? '';
-    $tags = isset($_POST['tags']) ? json_decode($_POST['tags'], true) : [];
+    
+    // FIX: Proper tags handling
+    $tags = [];
+    if (isset($_POST['tags']) && !empty($_POST['tags'])) {
+        $decodedTags = json_decode($_POST['tags'], true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decodedTags)) {
+            $tags = $decodedTags;
+        }
+    }
 
-    // Validate academic year format
+    // Enhanced academic year validation
+    if (empty($academicYear)) {
+        echo json_encode(['success' => false, 'message' => 'Academic year is required']);
+        exit();
+    }
+
+    // Validate academic year format (YYYY-YYYY)
     if (!preg_match('/^\d{4}-\d{4}$/', $academicYear)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid academic year format']);
+        echo json_encode(['success' => false, 'message' => 'Invalid academic year format. Use YYYY-YYYY format.']);
+        exit();
+    }
+
+    // Validate that the years are consecutive
+    list($startYear, $endYear) = explode('-', $academicYear);
+    if ((int)$endYear - (int)$startYear !== 1) {
+        echo json_encode(['success' => false, 'message' => 'Invalid academic year. End year must be exactly one year after start year.']);
         exit();
     }
 
@@ -99,7 +109,7 @@ try {
 
     // Validate semester
     if (!in_array($semester, ['first', 'second'])) {
-        echo json_encode(['success' => false, 'message' => 'Invalid semester']);
+        echo json_encode(['success' => false, 'message' => 'Invalid semester. Must be "first" or "second".']);
         exit();
     }
 
@@ -116,7 +126,7 @@ try {
         exit();
     }
 
-    // FIXED: Pass academicYear to the folder creation function
+    // Get or create category folder with academic year
     $folderId = getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $academicYear, $currentUser['id'], $userDepartmentId);
     if (!$folderId) {
         echo json_encode(['success' => false, 'message' => 'Failed to create category folder']);
@@ -134,84 +144,110 @@ try {
 
     $uploadedFiles = [];
     $errors = [];
+    $fileCount = count($_FILES['files']['name']);
 
-    // Process each uploaded file
-    foreach ($_FILES['files']['name'] as $key => $originalName) {
-        if ($_FILES['files']['error'][$key] === UPLOAD_ERR_OK) {
-            $tmpName = $_FILES['files']['tmp_name'][$key];
-            $fileSize = $_FILES['files']['size'][$key];
-            $fileType = $_FILES['files']['type'][$key];
+    // FIX: Better file processing loop with proper error handling
+    for ($i = 0; $i < $fileCount; $i++) {
+        // Skip empty file slots
+        if (empty($_FILES['files']['name'][$i])) {
+            continue;
+        }
+
+        $originalName = $_FILES['files']['name'][$i];
+        $tmpName = $_FILES['files']['tmp_name'][$i];
+        $fileSize = $_FILES['files']['size'][$i];
+        $fileType = $_FILES['files']['type'][$i];
+        $fileError = $_FILES['files']['error'][$i];
+
+        // Check for upload errors
+        if ($fileError !== UPLOAD_ERR_OK) {
+            $uploadErrorMessages = [
+                UPLOAD_ERR_INI_SIZE => 'File too large (server limit)',
+                UPLOAD_ERR_FORM_SIZE => 'File too large (form limit)',
+                UPLOAD_ERR_PARTIAL => 'File partially uploaded',
+                UPLOAD_ERR_NO_FILE => 'No file uploaded',
+                UPLOAD_ERR_NO_TMP_DIR => 'No temporary directory',
+                UPLOAD_ERR_CANT_WRITE => 'Cannot write to disk',
+                UPLOAD_ERR_EXTENSION => 'Upload blocked by extension'
+            ];
             
-            // Validate file size (50MB max)
-            if ($fileSize > 50 * 1024 * 1024) {
-                $errors[] = "File too large: " . $originalName . " (Max 50MB)";
+            $errorMessage = $uploadErrorMessages[$fileError] ?? 'Unknown upload error';
+            $errors[] = "Upload error for: " . $originalName . " (" . $errorMessage . ")";
+            continue;
+        }
+
+        // Validate file size (50MB max)
+        if ($fileSize > 50 * 1024 * 1024) {
+            $errors[] = "File too large: " . $originalName . " (Max 50MB)";
+            continue;
+        }
+        
+        // Get file extension
+        $fileExtension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        
+        // Generate unique filename
+        $fileName = uniqid() . '_' . time() . '_' . $i . '.' . $fileExtension;
+        $filePath = $uploadDir . $fileName;
+        
+        // Move uploaded file
+        if (move_uploaded_file($tmpName, $filePath)) {
+            // Calculate file hash for duplicate detection
+            $fileHash = hash_file('sha256', $filePath);
+            
+            // Check for duplicates - include academic year and semester in duplicate check
+            $stmt = $pdo->prepare("
+                SELECT f.id, f.original_name 
+                FROM files f 
+                INNER JOIN folders fo ON f.folder_id = fo.id
+                WHERE f.file_hash = ? AND fo.department_id = ? AND fo.category = ? 
+                AND f.academic_year = ? AND f.semester = ? AND f.is_deleted = 0
+            ");
+            $stmt->execute([$fileHash, $departmentId, $category, $academicYear, $semester]);
+            $duplicate = $stmt->fetch();
+            
+            if ($duplicate) {
+                unlink($filePath); // Remove the uploaded duplicate
+                $errors[] = "Duplicate file: " . $originalName . " (already exists as " . $duplicate['original_name'] . " in " . $academicYear . " - " . ucfirst($semester) . " Semester)";
                 continue;
             }
             
-            // Get file extension
-            $fileExtension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+            // Detect MIME type properly
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $detectedMimeType = finfo_file($finfo, $filePath);
+            finfo_close($finfo);
+            $mimeType = $detectedMimeType ?: $fileType;
             
-            // Generate unique filename
-            $fileName = uniqid() . '_' . time() . '.' . $fileExtension;
-            $filePath = $uploadDir . $fileName;
+            // Insert file record into database with academic year and semester
+            $stmt = $pdo->prepare("
+                INSERT INTO files (
+                    file_name, original_name, file_path, file_size, file_type, 
+                    mime_type, file_extension, uploaded_by, folder_id, 
+                    file_hash, tags, description, academic_year, semester, 
+                    uploaded_at, download_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
+            ");
             
-            // Move uploaded file
-            if (move_uploaded_file($tmpName, $filePath)) {
-                // Calculate file hash for duplicate detection
-                $fileHash = hash_file('sha256', $filePath);
-                
-                // Check for duplicates - also check academic year
-                $stmt = $pdo->prepare("
-                    SELECT f.id, f.original_name 
-                    FROM files f 
-                    INNER JOIN folders fo ON f.folder_id = fo.id
-                    WHERE f.file_hash = ? AND fo.department_id = ? AND fo.category = ? 
-                    AND f.academic_year = ? AND f.semester = ? AND f.is_deleted = 0
-                ");
-                $stmt->execute([$fileHash, $departmentId, $category, $academicYear, $semester]);
-                $duplicate = $stmt->fetch();
-                
-                if ($duplicate) {
-                    unlink($filePath); // Remove the uploaded duplicate
-                    $errors[] = "Duplicate file: " . $originalName . " (already exists as " . $duplicate['original_name'] . ")";
-                    continue;
-                }
-                
-                // Detect MIME type properly
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $detectedMimeType = finfo_file($finfo, $filePath);
-                finfo_close($finfo);
-                $mimeType = $detectedMimeType ?: $fileType;
-                
-                // Insert file record into database
-                $stmt = $pdo->prepare("
-                    INSERT INTO files (
-                        file_name, original_name, file_path, file_size, file_type, 
-                        mime_type, file_extension, uploaded_by, folder_id, 
-                        file_hash, tags, description, academic_year, semester, uploaded_at, download_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
-                ");
-                
-                $relativePath = "uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/" . $academicYear . "/" . $fileName;
-                $tagsJson = !empty($tags) ? json_encode($tags) : null;
-                
-                $stmt->execute([
-                    $fileName,
-                    $originalName,
-                    $relativePath,
-                    $fileSize,
-                    $fileType,
-                    $mimeType,
-                    $fileExtension,
-                    $currentUser['id'],
-                    $folderId,
-                    $fileHash,
-                    $tagsJson,
-                    $description,
-                    $academicYear,
-                    $semester
-                ]);
-                
+            $relativePath = "uploads/departments/" . $departmentId . "/" . $category . "/" . $semester . "/" . $academicYear . "/" . $fileName;
+            $tagsJson = !empty($tags) ? json_encode($tags) : null;
+            
+            $result = $stmt->execute([
+                $fileName,
+                $originalName,
+                $relativePath,
+                $fileSize,
+                $fileType,
+                $mimeType,
+                $fileExtension,
+                $currentUser['id'],
+                $folderId,
+                $fileHash,
+                $tagsJson,
+                $description,
+                $academicYear,
+                $semester
+            ]);
+
+            if ($result) {
                 $uploadedFiles[] = [
                     'id' => $pdo->lastInsertId(),
                     'name' => $originalName,
@@ -223,36 +259,31 @@ try {
 
                 // Update folder file count and size
                 updateFolderStats($pdo, $folderId);
-                
             } else {
-                $errors[] = "Failed to upload: " . $originalName;
+                // If database insert failed, remove the uploaded file
+                unlink($filePath);
+                $errors[] = "Database error for: " . $originalName;
             }
-        } else {
-            $uploadErrorMessages = [
-                UPLOAD_ERR_INI_SIZE => 'File too large (server limit)',
-                UPLOAD_ERR_FORM_SIZE => 'File too large (form limit)',
-                UPLOAD_ERR_PARTIAL => 'File partially uploaded',
-                UPLOAD_ERR_NO_FILE => 'No file uploaded',
-                UPLOAD_ERR_NO_TMP_DIR => 'No temporary directory',
-                UPLOAD_ERR_CANT_WRITE => 'Cannot write to disk',
-                UPLOAD_ERR_EXTENSION => 'Upload blocked by extension'
-            ];
             
-            $errorCode = $_FILES['files']['error'][$key];
-            $errorMessage = $uploadErrorMessages[$errorCode] ?? 'Unknown upload error';
-            $errors[] = "Upload error for: " . $originalName . " (" . $errorMessage . ")";
+        } else {
+            $errors[] = "Failed to upload: " . $originalName;
         }
     }
 
+    // FIX: Better response handling
     if (!empty($uploadedFiles)) {
+        $semesterText = $semester === 'first' ? 'First' : 'Second';
+        $categoryDisplayName = ucfirst(str_replace('_', ' ', $category));
+        
         $response = [
             'success' => true,
-            'message' => count($uploadedFiles) . ' files uploaded successfully to ' . ucfirst(str_replace('_', ' ', $category)) . ' - ' . ucfirst($semester) . ' Semester (' . $academicYear . ')',
+            'message' => count($uploadedFiles) . " file" . (count($uploadedFiles) > 1 ? 's' : '') . " uploaded successfully to {$categoryDisplayName} - {$semesterText} Semester ({$academicYear})",
             'uploaded_files' => $uploadedFiles,
             'departmentId' => $departmentId,
             'category' => $category,
             'semester' => $semester,
-            'academic_year' => $academicYear
+            'academic_year' => $academicYear,
+            'file_count' => count($uploadedFiles)
         ];
         
         if (!empty($errors)) {
@@ -263,7 +294,7 @@ try {
     } else {
         echo json_encode([
             'success' => false,
-            'message' => 'No files were uploaded successfully',
+            'message' => 'No files were uploaded successfully' . (!empty($errors) ? ': ' . implode(', ', $errors) : ''),
             'errors' => $errors
         ]);
     }
@@ -292,7 +323,7 @@ function updateFolderStats($pdo, $folderId) {
     }
 }
 
-// FIXED: Helper function to get or create category folder - now accepts academic year parameter
+// Enhanced helper function to get or create category folder with academic year
 function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $academicYear, $userId, $userDepartmentId) {
     // Security check: ensure user can only create folders in their own department
     if ($departmentId != $userDepartmentId) {

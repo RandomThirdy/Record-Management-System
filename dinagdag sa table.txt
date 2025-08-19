@@ -2,6 +2,10 @@ ALTER TABLE departments ADD COLUMN department_image VARCHAR(255);
 
 
 
+ALTER TABLE files 
+ADD COLUMN academic_year VARCHAR(10) NULL,
+ADD COLUMN semester ENUM('first', 'second') NOT NULL DEFAULT 'first';
+
 
 
 UPDATE departments SET department_image = '../../img/ITD.jpg' WHERE department_code = 'ITD';
