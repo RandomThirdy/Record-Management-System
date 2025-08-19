@@ -1,6 +1,6 @@
 <?php
 // Include the connection file (which defines $pdo)
-include '../includes/config.php';  // Adjust the path if needed
+include 'includes/config.php';  // Adjust the path if needed
 
 $message = '';
 

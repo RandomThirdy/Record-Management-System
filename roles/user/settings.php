@@ -206,9 +206,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button class="tab-btn" onclick="showTab('security')" style="font-family: 'Poppins', sans-serif; padding: 14px 24px; background: transparent; border: none; border-radius: 12px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--dark); display: flex; align-items: center; gap: 8px;">
                         <i class='bx bx-shield' style="font-size: 16px;"></i> Security
                     </button>
-                    <button class="tab-btn" onclick="showTab('preferences')" style="font-family: 'Poppins', sans-serif; padding: 14px 24px; background: transparent; border: none; border-radius: 12px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--dark); display: flex; align-items: center; gap: 8px;">
-                        <i class='bx bx-cog' style="font-size: 16px;"></i> Preferences
-                    </button>
                     <button class="tab-btn" onclick="showTab('account')" style="font-family: 'Poppins', sans-serif; padding: 14px 24px; background: transparent; border: none; border-radius: 12px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--dark); display: flex; align-items: center; gap: 8px;">
                         <i class='bx bx-user-circle' style="font-size: 16px;"></i> Account
                     </button>
@@ -225,7 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <!-- Enhanced Profile Picture Section -->
                             <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 32px; border: 2px dashed var(--blue); border-radius: 20px; text-align: center; margin-bottom: 32px; background: linear-gradient(135deg, rgba(52, 152, 219, 0.05) 0%, rgba(52, 152, 219, 0.02) 100%); transition: all 0.3s ease;">
                                 <div style="position: relative;">
-                                    <img src="../../img/gav.jpg" alt="Profile Picture" id="profilePreview" style="width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 5px solid var(--blue); box-shadow: 0 8px 24px rgba(52, 152, 219, 0.3); transition: all 0.3s ease;">
+                                    <img src="<?php echo htmlspecialchars($departmentImage); ?>" alt="<?php echo htmlspecialchars((isset($departmentCode) ? $departmentCode : 'User') . ' Profile'); ?> id="profilePreview" style="width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 5px solid var(--blue); box-shadow: 0 8px 24px rgba(52, 152, 219, 0.3); transition: all 0.3s ease;">
                                     <div style="position: absolute; bottom: 5px; right: 5px; background: var(--blue); border-radius: 50%; padding: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">
                                         <i class='bx bx-camera' style="color: white; font-size: 16px;"></i>
                                     </div>
@@ -317,129 +314,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </button>
                             </div>
                         </form>
-                    </div>
-
-                    <!-- Enhanced Two-Factor Authentication -->
-                    <div style="background: linear-gradient(135deg, var(--light) 0%, #ffffff 100%); border-radius: 24px; padding: 32px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px);">
-                        <h3 style="font-family: 'Poppins', sans-serif; margin: 0 0 28px 0; color: var(--dark); font-weight: 700; font-size: 24px; display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, var(--blue), #2980b9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                            <i class='bx bx-mobile' style="font-size: 28px; color: var(--blue);"></i> Two-Factor Authentication
-                        </h3>
-                        
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 24px; background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 16px; margin-bottom: 20px; border: 1px solid #e9ecef; transition: all 0.3s ease;">
-                            <div style="display: flex; align-items: center; gap: 16px;">
-                                <div style="background: linear-gradient(135deg, #28a745, #20c997); padding: 12px; border-radius: 12px;">
-                                    <i class='bx bx-message' style="color: white; font-size: 20px;"></i>
-                                </div>
-                                <div>
-                                    <h4 style="font-family: 'Poppins', sans-serif; margin: 0 0 4px 0; font-size: 16px; font-weight: 600; color: var(--dark);">SMS Authentication</h4>
-                                    <p style="margin: 0; color: #6c757d; font-size: 14px; font-family: 'Poppins', sans-serif;">Receive verification codes via text message</p>
-                                </div>
-                            </div>
-                            <label style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                                <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
-                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, var(--blue), #2980b9); transition: .4s; border-radius: 30px; box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);"></span>
-                                <span style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); transform: translateX(30px);"></span>
-                            </label>
-                        </div>
-
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 24px; background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 16px; border: 1px solid #e9ecef; transition: all 0.3s ease;">
-                            <div style="display: flex; align-items: center; gap: 16px;">
-                                <div style="background: linear-gradient(135deg, #6c757d, #495057); padding: 12px; border-radius: 12px;">
-                                    <i class='bx bx-envelope' style="color: white; font-size: 20px;"></i>
-                                </div>
-                                <div>
-                                    <h4 style="font-family: 'Poppins', sans-serif; margin: 0 0 4px 0; font-size: 16px; font-weight: 600; color: var(--dark);">Email Authentication</h4>
-                                    <p style="margin: 0; color: #6c757d; font-size: 14px; font-family: 'Poppins', sans-serif;">Receive verification codes via email</p>
-                                </div>
-                            </div>
-                            <label style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                                <input type="checkbox" style="opacity: 0; width: 0; height: 0;">
-                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; transition: .4s; border-radius: 30px;"></span>
-                                <span style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);"></span>
-                            </label>
-                        </div>
-                    </div>
+                    </div>          
                 </div>
 
-                <!-- Preferences Tab -->
-                <div id="preferences" class="tab-content" style="display: none;">
-                    <div style="background: linear-gradient(135deg, var(--light) 0%, #ffffff 100%); border-radius: 24px; padding: 32px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px);">
-                        <h3 style="font-family: 'Poppins', sans-serif; margin: 0 0 28px 0; color: var(--dark); font-weight: 700; font-size: 24px; display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, var(--blue), #2980b9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                            <i class='bx bx-cog' style="font-size: 28px; color: var(--blue);"></i> User Preferences
-                        </h3>
-                        
-                        <form method="POST">
-                            <div style="display: flex; flex-direction: column; gap: 32px;">
-                                <!-- Enhanced Notifications Section -->
-                                <div style="padding: 24px; background: linear-gradient(135deg, rgba(52, 152, 219, 0.05), rgba(52, 152, 219, 0.02)); border-radius: 16px; border: 1px solid rgba(52, 152, 219, 0.1);">
-                                    <h4 style="font-family: 'Poppins', sans-serif; margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: var(--dark); display: flex; align-items: center; gap: 8px;">
-                                        <i class='bx bx-bell' style="color: var(--blue); font-size: 20px;"></i> Notifications
-                                    </h4>
-                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid #e9ecef;">
-                                        <div>
-                                            <label for="email_notifications" style="font-family: 'Poppins', sans-serif; font-weight: 500; color: var(--dark); font-size: 14px; cursor: pointer;">Receive email notifications</label>
-                                            <p style="margin: 4px 0 0 0; font-size: 12px; color: #6c757d; font-family: 'Poppins', sans-serif;">Get notified about important updates via email</p>
-                                        </div>
-                                        <label style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                                            <input type="checkbox" name="email_notifications" id="email_notifications" <?php echo ($currentUser['email_notifications'] ?? 1) ? 'checked' : ''; ?> style="opacity: 0; width: 0; height: 0;">
-                                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: <?php echo ($currentUser['email_notifications'] ?? 1) ? 'linear-gradient(135deg, var(--blue), #2980b9)' : '#ccc'; ?>; transition: .4s; border-radius: 30px; box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);"></span>
-                                            <span style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); transform: translateX(<?php echo ($currentUser['email_notifications'] ?? 1) ? '30px' : '0'; ?>);"></span>
-                                        </label>
-                                    </div>
-                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0;">
-                                        <div>
-                                            <label for="push_notifications" style="font-family: 'Poppins', sans-serif; font-weight: 500; color: var(--dark); font-size: 14px; cursor: pointer;">Receive push notifications</label>
-                                            <p style="margin: 4px 0 0 0; font-size: 12px; color: #6c757d; font-family: 'Poppins', sans-serif;">Get instant notifications on your device</p>
-                                        </div>
-                                        <label style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                                            <input type="checkbox" name="push_notifications" id="push_notifications" style="opacity: 0; width: 0; height: 0;">
-                                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; transition: .4s; border-radius: 30px;"></span>
-                                            <span style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);"></span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Enhanced Theme Section -->
-                                <div style="padding: 24px; background: linear-gradient(135deg, rgba(108, 117, 125, 0.05), rgba(108, 117, 125, 0.02)); border-radius: 16px; border: 1px solid rgba(108, 117, 125, 0.1);">
-                                    <h4 style="font-family: 'Poppins', sans-serif; margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: var(--dark); display: flex; align-items: center; gap: 8px;">
-                                        <i class='bx bx-palette' style="color: #6c757d; font-size: 20px;"></i> Appearance
-                                    </h4>
-                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0;">
-                                        <div>
-                                            <label for="dark_mode" style="font-family: 'Poppins', sans-serif; font-weight: 500; color: var(--dark); font-size: 14px; cursor: pointer;">Enable dark mode</label>
-                                            <p style="margin: 4px 0 0 0; font-size: 12px; color: #6c757d; font-family: 'Poppins', sans-serif;">Switch to dark theme for better night viewing</p>
-                                        </div>
-                                        <label style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                                            <input type="checkbox" name="dark_mode" id="dark_mode" <?php echo ($currentUser['dark_mode'] ?? 0) ? 'checked' : ''; ?> style="opacity: 0; width: 0; height: 0;">
-                                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: <?php echo ($currentUser['dark_mode'] ?? 0) ? 'linear-gradient(135deg, #495057, #343a40)' : '#ccc'; ?>; transition: .4s; border-radius: 30px; box-shadow: 0 4px 12px rgba(73, 80, 87, 0.3);"></span>
-                                            <span style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); transform: translateX(<?php echo ($currentUser['dark_mode'] ?? 0) ? '30px' : '0'; ?>);"></span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Enhanced Language Section -->
-                                <div style="padding: 24px; background: linear-gradient(135deg, rgba(40, 167, 69, 0.05), rgba(40, 167, 69, 0.02)); border-radius: 16px; border: 1px solid rgba(40, 167, 69, 0.1);">
-                                    <h4 style="font-family: 'Poppins', sans-serif; margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: var(--dark); display: flex; align-items: center; gap: 8px;">
-                                        <i class='bx bx-world' style="color: #28a745; font-size: 20px;"></i> Language & Region
-                                    </h4>
-                                    <div style="display: flex; flex-direction: column; gap: 8px; max-width: 300px;">
-                                        <label for="language" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--dark); font-size: 14px; margin-bottom: 4px;">Language</label>
-                                        <select name="language" id="language" style="font-family: 'Poppins', sans-serif; padding: 16px 20px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 14px; transition: all 0.3s ease; background: var(--light); color: var(--dark); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);">
-                                            <option value="en">🇺🇸 English</option>
-                                            <option value="fil">🇵🇭 Filipino</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="margin-top: 32px;">
-                                <button type="submit" name="update_preferences" style="font-family: 'Poppins', sans-serif; padding: 16px 32px; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(135deg, var(--blue) 0%, #2980b9 100%); color: white; box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);">
-                                    <i class='bx bx-save' style="font-size: 16px;"></i> Save Preferences
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+            
 
                 <!-- Account Tab -->
                 <div id="account" class="tab-content" style="display: none;">

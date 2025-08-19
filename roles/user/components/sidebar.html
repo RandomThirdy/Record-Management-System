@@ -9,28 +9,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <span class="text" style="margin-left: 6px;">ODCI</span>
     </a>
     <ul class="side-menu top">
+        <li class="<?= $current_page == 'social_feed.php' ? 'active' : '' ?>">
+            <a href="social_feed.php">
+                <i class='bx bxs-dashboard'></i>
+                <span class="text">Social Feed</span>
+            </a>
+        </li>
         <li class="<?= $current_page == 'dashboard.php' ? 'active' : '' ?>">
             <a href="dashboard.php">
                 <i class='bx bxs-dashboard'></i>
                 <span class="text">Dashboard</span>
             </a>
         </li>
-        <li class="<?= $current_page == 'files.php' ? 'active' : '' ?>">
-            <a href="files.php">
-                <i class='bx bxs-file'></i>
-                <span class="text">My Files</span>
-            </a>
-        </li>
         <li class="<?= $current_page == 'folders.php' ? 'active' : '' ?>">
             <a href="folders.php">
                 <i class='bx bxs-folder'></i>
-                <span class="text">My Folders</span>
+                <span class="text">Department Folders</span>
             </a>
         </li>
         <li class="<?= $current_page == 'submission_tracker.php' ? 'active' : '' ?>">
             <a href="submission_tracker.php">
                 <i class='bx bxs-check-square'></i>
-                <span class="text">Submission Tracker</span>
+                <span class="text">My Tracker</span>
             </a>
         </li>
         <li class="<?= $current_page == 'reports.php' ? 'active' : '' ?>">

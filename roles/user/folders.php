@@ -331,7 +331,7 @@ function getUserInitials($fullName) {
                     <div>
                         <h2 style="margin: 0; font-size: 24px; font-weight: 600; margin-bottom: 4px;">
                             <i class='bx bxs-cloud-upload' style="margin-right: 8px; font-size: 28px;"></i>
-                            Upload Files
+                            Upload File
                         </h2>
                         <p style="margin: 0; opacity: 0.9; font-size: 14px;">Share your documents with your department</p>
                     </div>
@@ -369,6 +369,23 @@ function getUserInitials($fullName) {
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <!-- Academic Year Selection -->
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
+                        <i class='bx bxs-calendar-alt' style="color: #10b981; margin-right: 8px;"></i>
+                        Academic Year
+                    </label>
+                    <select name="academic_year" required 
+                        style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" 
+                        onfocus="this.style.borderColor='#10b981'" 
+                        onblur="this.style.borderColor='#e5e7eb'">
+                        <option value="">Select academic year...</option>
+                    </select>
+                    <small style="display: flex; align-items: center; gap: 4px; margin-top: 8px; color: #6b7280; font-size: 12px;">
+                        <i class='bx bx-info-circle' style="color: #6b7280; font-size: 14px;"></i>
+                        Academic year follows the format: Start Year - End Year (e.g., 2024-2025)
+                    </small>
+                </div>
 
                 <!-- Semester Selection -->
                 <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
@@ -376,29 +393,39 @@ function getUserInitials($fullName) {
                         <i class='bx bxs-calendar' style="color: #10b981; margin-right: 8px;"></i>
                         Academic Semester
                     </label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
-                            <input type="radio" name="semester" value="first" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
-                            <div>
-                                <div style="font-weight: 600; color: #374151;">First Semester</div>
-                                <div style="font-size: 12px; color: #6b7280;">August - December</div>
+                    <div class="semester-selection-container">
+                        <!-- First Semester Option -->
+                        <input type="radio" name="semester" value="first" id="semester-first" required>
+                        <label for="semester-first">
+                            <div class="semester-option">
+                                <i class='bx bxs-calendar-check semester-icon'></i>
+                                <div class="semester-info">
+                                    <h4>First Semester</h4>
+                                </div>
                             </div>
                         </label>
-                        <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
-                            <input type="radio" name="semester" value="second" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
-                            <div>
-                                <div style="font-weight: 600; color: #374151;">Second Semester</div>
-                                <div style="font-size: 12px; color: #6b7280;">January - May</div>
+                        
+                        <!-- Second Semester Option -->
+                        <input type="radio" name="semester" value="second" id="semester-second" required>
+                        <label for="semester-second">
+                            <div class="semester-option">
+                                <i class='bx bxs-calendar-star semester-icon'></i>
+                                <div class="semester-info">
+                                    <h4>Second Semester</h4>
+                                </div>
                             </div>
                         </label>
                     </div>
+                    
+                    <!-- Academic Period Summary (will be populated by JavaScript) -->
+                    <div id="academicPeriodSummary" class="academic-period-summary"></div>
                 </div>
 
                 <!-- File Upload Area -->
                 <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
                         <i class='bx bxs-file-plus' style="color: #10b981; margin-right: 8px;"></i>
-                        Upload Files
+                        Upload File
                     </label>
                     
                     <div id="dropZone" style="border: 2px dashed #10b981; border-radius: 12px; padding: 40px 20px; text-align: center; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden;">
@@ -409,7 +436,7 @@ function getUserInitials($fullName) {
                             <h3 style="margin: 0 0 8px 0; color: #065f46; font-size: 18px; font-weight: 600;">Drop files here or click to browse</h3>
                             <p style="margin: 0; color: #059669; font-size: 14px; opacity: 0.8;">Support for PDF, DOC, XLS, PPT, Images and more</p>
                             <div style="margin-top: 16px; display: inline-flex; align-items: center; background: rgba(16, 185, 129, 0.1); padding: 8px 16px; border-radius: 20px; font-size: 12px; color: #065f46; font-weight: 500;">
-                                <i class='bx bx-info-circle' style="margin-right: 6px;"></i>
+                                <i class='bx bx-info-circle' style="margin-right: 4px; margin-top: 0px;"></i>
                                 Max file size: 50MB per file
                             </div>
                         </div>
