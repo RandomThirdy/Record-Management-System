@@ -1,0 +1,66 @@
+<nav>
+    <i class='bx bx-menu'></i>
+    <form action="#">
+
+    </form>
+    <input type="checkbox" id="switch-mode" hidden>
+    <label for="switch-mode" class="switch-mode"></label>
+    <a href="#" class="notification">
+        <i class='bx bxs-bell'></i>
+        <span class="num">8</span>
+    </a>
+
+    <?php 
+    // Check if logged-in user has profile image
+    $profileImage = isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image']) 
+        ? '../../' . $_SESSION['profile_image'] 
+        : '../../img/default-avatar.png';
+?>
+
+<a href="#" class="profile">
+    <img src="<?php echo htmlspecialchars($profileImage); ?>" alt="Profile">
+</a>
+
+</nav>
+
+
+<script>
+    const allSideMenu = document.querySelectorAll('#sidebar .side-menu.top li a');
+
+    allSideMenu.forEach(item=> {
+        const li = item.parentElement;
+
+        item.addEventListener('click', function () {
+            allSideMenu.forEach(i=> {
+                i.parentElement.classList.remove('active');
+            })
+            li.classList.add('active');
+        })
+    });
+
+    // Toggle sidebar
+    const menuBar = document.querySelector('#content nav .bx.bx-menu');
+    const sidebar = document.getElementById('sidebar');
+
+    menuBar.addEventListener('click', function () {
+        sidebar.classList.toggle('hide');
+    })
+    
+    const switchMode = document.getElementById('switch-mode');
+
+    if(localStorage.getItem('mode') === 'dark') {
+        switchMode.checked = true;
+        document.body.classList.add('dark');
+    }
+
+    switchMode.addEventListener('change', function () {
+        if (this.checked) {
+            document.body.classList.add('dark');
+            localStorage.setItem('mode', 'dark');
+        } else {
+            document.body.classList.remove('dark');
+            localStorage.setItem('mode', 'light');
+        }
+    });
+</script>
+

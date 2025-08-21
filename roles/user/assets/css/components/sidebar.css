@@ -1,0 +1,543 @@
+
+/* SIDEBAR */
+#sidebar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 280px;
+	height: 100%;
+	background: var(--light);
+	z-index: 2000;
+	font-family: var(--poppins);
+	transition: .3s ease;
+	overflow-x: hidden;
+	scrollbar-width: none;
+}
+#sidebar::-webkit-scrollbar {
+	display: none;
+}
+#sidebar.hide {
+	width: 60px;
+}
+#sidebar .brand {
+	font-size: 24px;
+	font-weight: 700;
+	height: 56px;
+	display: flex;
+	align-items: center;
+	color: var(--blue);
+	position: sticky;
+	top: 0;
+	left: 0;
+	background: var(--light);
+	z-index: 500;
+	padding-bottom: 20px;
+	box-sizing: content-box;
+}
+#sidebar .brand .bx {
+	min-width: 60px;
+	display: flex;
+	justify-content: center;
+}
+#sidebar .side-menu {
+	width: 100%;
+	margin-top: 48px;
+}
+#sidebar .side-menu li {
+	height: 48px;
+	background: transparent;
+	margin-left: 6px;
+	border-radius: 48px 0 0 48px;
+	padding: 4px;
+}
+#sidebar .side-menu li.active {
+	background: var(--grey);
+	position: relative;
+}
+#sidebar .side-menu li.active::before {
+	content: '';
+	position: absolute;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	top: -40px;
+	right: 0;
+	box-shadow: 20px 20px 0 var(--grey);
+	z-index: -1;
+}
+#sidebar .side-menu li.active::after {
+	content: '';
+	position: absolute;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	bottom: -40px;
+	right: 0;
+	box-shadow: 20px -20px 0 var(--grey);
+	z-index: -1;
+}
+#sidebar .side-menu li a {
+	width: 100%;
+	height: 100%;
+	background: var(--light);
+	display: flex;
+	align-items: center;
+	border-radius: 48px;
+	font-size: 16px;
+	color: var(--dark);
+	white-space: nowrap;
+	overflow-x: hidden;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	position: relative;
+}
+#sidebar .side-menu.top li.active a {
+	color: var(--blue);
+}
+#sidebar.hide .side-menu li a {
+	width: calc(48px - (4px * 2));
+	transition: width .3s ease;
+}
+#sidebar .side-menu li a.logout {
+	color: var(--red);
+}
+
+/* Enhanced hover effects for top menu items */
+#sidebar .side-menu.top li a:hover {
+	color: var(--blue);
+	background: linear-gradient(90deg, transparent 0%, rgba(52, 152, 219, 0.1) 20%, rgba(52, 152, 219, 0.15) 100%);
+	transform: translateX(4px);
+	box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+	border-left: 4px solid var(--blue);
+	padding-left: 20px;
+}
+
+#sidebar .side-menu.top li a:hover .bx {
+	color: var(--blue);
+	transform: scale(1.1);
+	transition: all 0.3s ease;
+}
+
+#sidebar .side-menu.top li a:hover .text {
+	font-weight: 600;
+	letter-spacing: 0.5px;
+}
+
+/* Settings hover - Blue theme with gear rotation */
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover {
+	color: var(--blue);
+	background: linear-gradient(135deg, rgba(52, 152, 219, 0.12), rgba(52, 152, 219, 0.06));
+	border-radius: 48px;
+	transform: translateX(6px);
+	box-shadow: 0 4px 15px rgba(52, 152, 219, 0.25);
+	border-left: 4px solid var(--blue);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover .bx,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover .bx {
+	color: var(--blue);
+	transform: rotate(180deg) scale(1.15);
+	transition: all 0.4s ease;
+	filter: drop-shadow(0 2px 4px rgba(52, 152, 219, 0.3));
+	animation: settingsRotate 2s linear infinite;
+}
+
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover .text,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover .text {
+	font-weight: 600;
+	letter-spacing: 0.8px;
+	color: var(--blue);
+}
+
+/* Settings shimmer effect */
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover::after,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.3), transparent);
+	animation: shimmer 1.5s infinite;
+	border-radius: 48px;
+}
+
+/* Logout hover - Red/Orange theme with warning effect */
+#sidebar .side-menu:not(.top) li a.logout:hover,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:hover {
+	color: var(--red);
+	background: linear-gradient(135deg, rgba(231, 76, 60, 0.12), rgba(255, 107, 107, 0.08));
+	border-radius: 48px;
+	transform: translateX(6px);
+	box-shadow: 0 4px 15px rgba(231, 76, 60, 0.25);
+	border-left: 4px solid var(--red);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	position: relative;
+}
+
+#sidebar .side-menu:not(.top) li a.logout:hover .bx,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:hover .bx {
+	color: var(--red);
+	transform: scale(1.15);
+	transition: all 0.3s ease;
+	filter: drop-shadow(0 2px 4px rgba(231, 76, 60, 0.3));
+	animation: logoutPulse 1.5s infinite;
+}
+
+#sidebar .side-menu:not(.top) li a.logout:hover .text,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:hover .text {
+	font-weight: 600;
+	letter-spacing: 0.8px;
+	color: var(--red);
+}
+
+/* Warning pulse animation for logout */
+@keyframes logoutPulse {
+	0%, 100% {
+		transform: scale(1.15);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(1.25);
+		opacity: 0.8;
+	}
+}
+
+/* Settings gear continuous rotation on hover */
+@keyframes settingsRotate {
+	from {
+		transform: rotate(0deg) scale(1.15);
+	}
+	to {
+		transform: rotate(360deg) scale(1.15);
+	}
+}
+
+/* Settings shimmer animation */
+@keyframes shimmer {
+	0% {
+		left: -100%;
+	}
+	100% {
+		left: 100%;
+	}
+}
+
+/* Glowing effect for logout */
+#sidebar .side-menu:not(.top) li a.logout:hover::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(255, 107, 107, 0.05));
+	border-radius: 48px;
+	animation: glowPulse 2s infinite;
+	z-index: -1;
+}
+
+@keyframes glowPulse {
+	0%, 100% {
+		opacity: 0.5;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.02);
+	}
+}
+
+/* Logout shake effect on hover */
+#sidebar .side-menu:not(.top) li a.logout:hover {
+	animation: logoutShake 0.5s ease-in-out;
+}
+
+@keyframes logoutShake {
+	0%, 100% {
+		transform: translateX(6px);
+	}
+	25% {
+		transform: translateX(8px);
+	}
+	75% {
+		transform: translateX(4px);
+	}
+}
+
+#sidebar .side-menu li a .bx {
+	min-width: calc(60px  - ((4px + 6px) * 2));
+	display: flex;
+	justify-content: center;
+	transition: all 0.3s ease;
+}
+
+/* Focus states for accessibility */
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:focus,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:focus {
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
+	background: rgba(52, 152, 219, 0.1);
+}
+
+#sidebar .side-menu:not(.top) li a.logout:focus,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:focus {
+	outline: 2px solid var(--red);
+	outline-offset: 2px;
+	background: rgba(231, 76, 60, 0.1);
+}
+
+/* Dark mode adjustments */
+.dark #sidebar .side-menu.top li a:hover {
+	background: linear-gradient(90deg, transparent 0%, rgba(52, 152, 219, 0.15) 20%, rgba(52, 152, 219, 0.2) 100%);
+}
+
+.dark #sidebar .side-menu:not(.top) li a[href="settings.php"]:hover,
+.dark #sidebar .side-menu:not(.top) li a[href*="settings"]:hover {
+	background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1));
+	box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+}
+
+.dark #sidebar .side-menu:not(.top) li a.logout:hover,
+.dark #sidebar .side-menu:not(.top) li a[href*="logout"]:hover {
+	background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(255, 107, 107, 0.1));
+	box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	#sidebar .side-menu.top li a:hover,
+	#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover,
+	#sidebar .side-menu:not(.top) li a[href*="settings"]:hover,
+	#sidebar .side-menu:not(.top) li a.logout:hover,
+	#sidebar .side-menu:not(.top) li a[href*="logout"]:hover {
+		transform: translateX(3px);
+		border-left-width: 2px;
+		padding-left: 16px;
+	}
+}
+
+/* Ensure all links have position relative for pseudo-elements */
+#sidebar .side-menu li a {
+	position: relative;
+	overflow: hidden;
+}
+/* Different hover styles for bottom menu items */
+
+/* Settings hover - Blue theme with gear rotation */
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover {
+    color: var(--blue);
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.12), rgba(52, 152, 219, 0.06));
+    border-radius: 10px;
+    transform: translateX(6px);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.25);
+    border-left: 4px solid var(--blue);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover i,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover i {
+    color: var(--blue);
+    transform: rotate(180deg) scale(1.15);
+    transition: all 0.4s ease;
+    filter: drop-shadow(0 2px 4px rgba(52, 152, 219, 0.3));
+}
+
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover .text,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover .text {
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: var(--blue);
+}
+
+/* Logout hover - Red/Orange theme with warning effect */
+#sidebar .side-menu:not(.top) li a.logout:hover,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:hover {
+    color: #e74c3c;
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.12), rgba(255, 107, 107, 0.08));
+    border-radius: 10px;
+    transform: translateX(6px);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.25);
+    border-left: 4px solid #e74c3c;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+#sidebar .side-menu:not(.top) li a.logout:hover i,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:hover i {
+    color: #e74c3c;
+    transform: scale(1.15);
+    transition: all 0.3s ease;
+    filter: drop-shadow(0 2px 4px rgba(231, 76, 60, 0.3));
+    animation: logoutPulse 1.5s infinite;
+}
+
+#sidebar .side-menu:not(.top) li a.logout:hover .text,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:hover .text {
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: #e74c3c;
+}
+
+/* Warning pulse animation for logout */
+@keyframes logoutPulse {
+    0%, 100% {
+        transform: scale(1.15);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.25);
+        opacity: 0.8;
+    }
+}
+
+/* Glowing effect for logout */
+#sidebar .side-menu:not(.top) li a.logout:hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(255, 107, 107, 0.05));
+    border-radius: 10px;
+    animation: glowPulse 2s infinite;
+    z-index: -1;
+}
+
+@keyframes glowPulse {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+}
+
+/* Settings gear continuous rotation on hover */
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover i,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover i {
+    animation: settingsRotate 2s linear infinite;
+}
+
+@keyframes settingsRotate {
+    from {
+        transform: rotate(0deg) scale(1.15);
+    }
+    to {
+        transform: rotate(360deg) scale(1.15);
+    }
+}
+
+/* Additional subtle effects */
+
+/* Settings - Blue shimmer effect */
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:hover::after,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:hover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.3), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Logout - Shake effect on hover */
+#sidebar .side-menu:not(.top) li a.logout:hover {
+    animation: logoutShake 0.5s ease-in-out;
+}
+
+@keyframes logoutShake {
+    0%, 100% {
+        transform: translateX(6px);
+    }
+    25% {
+        transform: translateX(8px);
+    }
+    75% {
+        transform: translateX(4px);
+    }
+}
+
+/* Focus states for accessibility */
+#sidebar .side-menu:not(.top) li a[href="settings.php"]:focus,
+#sidebar .side-menu:not(.top) li a[href*="settings"]:focus {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    background: rgba(52, 152, 219, 0.1);
+}
+
+#sidebar .side-menu:not(.top) li a.logout:focus,
+#sidebar .side-menu:not(.top) li a[href*="logout"]:focus {
+    outline: 2px solid #e74c3c;
+    outline-offset: 2px;
+    background: rgba(231, 76, 60, 0.1);
+}
+
+/* Dark mode adjustments */
+.dark #sidebar .side-menu:not(.top) li a[href="settings.php"]:hover,
+.dark #sidebar .side-menu:not(.top) li a[href*="settings"]:hover {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1));
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+}
+
+.dark #sidebar .side-menu:not(.top) li a.logout:hover,
+.dark #sidebar .side-menu:not(.top) li a[href*="logout"]:hover {
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(255, 107, 107, 0.1));
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #sidebar .side-menu:not(.top) li a[href="settings.php"]:hover,
+    #sidebar .side-menu:not(.top) li a[href*="settings"]:hover,
+    #sidebar .side-menu:not(.top) li a.logout:hover,
+    #sidebar .side-menu:not(.top) li a[href*="logout"]:hover {
+        transform: translateX(3px);
+        border-left-width: 2px;
+    }
+}
+
+/* Remove any conflicting styles */
+#sidebar .side-menu:not(.top) li a {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* CONTENT */
+#content {
+	position: relative;
+	width: calc(100% - 280px);
+	left: 280px;
+	transition: .3s ease;
+}
+#sidebar.hide ~ #content {
+	width: calc(100% - 60px);
+	left: 60px;
+}
+
+
+
+
+@media screen and (max-width: 768px) {
+	#sidebar {
+		width: 200px;
+	}
+}

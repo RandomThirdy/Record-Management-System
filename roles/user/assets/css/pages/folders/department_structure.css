@@ -1,0 +1,119 @@
+.department-notice {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.department-notice i {
+    font-size: 32px;
+    opacity: 0.9;
+}
+
+.department-notice-content h3 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.department-notice-content p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+.department-tree {
+    background: var(--grey);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.department-item {
+    margin-bottom: 16px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.department-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.department-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--light);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.department-header:hover {
+    background: #f8fafc;
+}
+
+.department-header.active {
+    background: #f1f5f9;
+}
+
+.department-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 16px;
+    color: white;
+    font-size: 20px;
+}
+
+.department-info {
+    flex: 1;
+}
+
+.department-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--dark);
+    margin-bottom: 4px;
+}
+
+.department-code {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.expand-icon {
+    font-size: 20px;
+    color: #64748b;
+    transition: transform 0.3s ease;
+}
+
+.expand-icon.rotated {
+    transform: rotate(90deg);
+}
+
+.department-content {
+    display: none;
+    background: var(--light);
+    border-top: 1px solid #e5e7eb;
+}
+
+.department-content.show {
+    display: block;
+    animation: slideDown 0.3s ease;
+}

@@ -1,0 +1,74 @@
+<?php
+    $current_page = basename($_SERVER['PHP_SELF']);
+?>
+
+<section id="sidebar">
+    <a href="#" class="brand">
+        <img src="../../img/cvsu-logo.png" alt="Logo" style="width: 40px; height: 40px; margin-left: 15px; margin-right: 20px;">
+        <span class="text">ODCI</span>
+    </a>
+    <ul class="side-menu top">
+        <li class="<?= $current_page == 'dashboard.php' ? 'active' : '' ?>">
+            <a href="dashboard.php">
+                <i class='bx bxs-dashboard'></i>
+                <span class="text">Dashboard</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'social-feed.php' ? 'active' : '' ?>">
+            <a href="social-feed.php">
+                <i class='bx bxs-message-rounded-dots'></i>
+                <span class="text">Social Feed</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'document-tracker.php' ? 'active' : '' ?>">
+            <a href="document-tracker.php">
+                <i class='bx bxs-file-find'></i>
+                <span class="text">Document Tracker</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'view-faculty-staff.php' ? 'active' : '' ?>">
+            <a href="view-faculty-staff.php">
+                <i class='bx bxs-user-voice'></i>
+                <span class="text">View Faculty Staff</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'files.php' ? 'active' : '' ?>">
+            <a href="files.php">
+                <i class='bx bxs-file'></i>
+                <span class="text">All Files</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'folders.php' ? 'active' : '' ?>">
+            <a href="folders.php">
+                <i class='bx bxs-folder'></i>
+                <span class="text">All Folders</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'shared.php' ? 'active' : '' ?>">
+            <a href="shared.php">
+                <i class='bx bxs-share'></i>
+                <span class="text">Shared Files</span>
+            </a>
+        </li>
+        <li class="<?= $current_page == 'reports.php' ? 'active' : '' ?>">
+            <a href="reports.php">
+                <i class='bx bxs-report'></i>
+                <span class="text">Reports</span>
+            </a>
+        </li>
+    </ul>
+    <ul class="side-menu">
+        <li class="<?= $current_page == 'profile.php' ? 'active' : '' ?>">
+            <a href="profile.php">
+                <i class='bx bxs-cog'></i>
+                <span class="text">Settings</span>
+            </a>
+        </li>
+        <li>
+            <a href="../../logout.php" class="logout">
+                <i class='bx bxs-log-out-circle'></i>
+                <span class="text">Logout</span>
+            </a>
+        </li>
+    </ul>
+</section>
