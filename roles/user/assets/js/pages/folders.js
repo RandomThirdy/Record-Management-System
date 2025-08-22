@@ -1012,7 +1012,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Make enhanced functions available globally
 window.populateAcademicYears = populateAcademicYears;
 window.getCurrentAcademicYear = getCurrentAcademicYear;
 window.getCurrentSemester = getCurrentSemester;
@@ -1028,6 +1027,3 @@ window.toggleDepartment = toggleDepartment;
 window.toggleCategory = toggleCategory;
 window.showCategorySemester = showCategorySemester;
 window.downloadFile = downloadFile;
-
-
-
