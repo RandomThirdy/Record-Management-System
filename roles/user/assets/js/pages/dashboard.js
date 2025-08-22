@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initInteractiveElements();
 });
 
-// Sidebar functionality
 function initSidebar() {
     const allSideMenu = document.querySelectorAll('#sidebar .side-menu.top li a');
 
