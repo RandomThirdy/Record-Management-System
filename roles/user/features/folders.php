@@ -1106,7 +1106,15 @@ function getUserInitials($fullName) {
         }
     }
     </script>
-    <script src="../assets/js/pages/folders.js"></script>
+    <script src="../assets/js/pages/folders/academic_period.js"></script>
+    <script src="../assets/js/pages/folders/category.js"></script>
+    <script src="../assets/js/pages/folders/department.js"></script>
+    <script src="../assets/js/pages/folders/file_rendering.js"></script>
+    <script src="../assets/js/pages/folders/main.js"></script>
+    <script src="../assets/js/pages/folders/ui_components.js"></script>
+    <script src="../assets/js/pages/folders/upload_handler.js"></script>
+    <script src="../assets/js/pages/folders/search_functionality.js"></script>
+    <script src="../assets/js/pages/folders/modal.js"></script>
     <script src="../assets/js/components/navbar.js"></script>
 </body>
 </html>
