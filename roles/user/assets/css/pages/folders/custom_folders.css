@@ -1,0 +1,410 @@
+/* Custom Folders Container */
+.custom-categories-container {
+    background: #f8fafc;
+    border-radius: 12px;
+    margin: 16px 20px 0;
+    padding: 16px;
+}
+
+/* Custom Folders Grid - Following the same structure as categories-grid */
+.custom-folders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.custom-folder-item {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+.custom-folder-item:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-3px);
+    border-color: #d1d5db;
+}
+
+/* Custom Folder Header - Following category-header structure */
+.custom-folder-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f3f4f6;
+    background: #fafafa;
+    position: relative;
+}
+
+.custom-folder-header:hover {
+    background: #f5f5f5;
+}
+
+.custom-folder-header.active {
+    background: #f0f9ff;
+    border-bottom-color: #e0f2fe;
+}
+
+/* Custom Folder Icon - Following category-icon structure */
+.custom-folder-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 14px;
+    color: white;
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background: #0f766e; /* Default color for custom folders */
+}
+
+/* Custom Folder Info - Following category-info structure */
+.custom-folder-info {
+    flex: 1;
+}
+
+.custom-folder-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--dark);
+    margin-bottom: 3px;
+    line-height: 1.3;
+}
+
+.custom-folder-count {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.custom-folder-description {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 4px;
+    opacity: 0.8;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Custom Folder Actions */
+.custom-folder-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transform: translateX(10px);
+    transition: all 0.3s ease;
+}
+
+.custom-folder-item:hover .custom-folder-actions {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.folder-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.edit-btn {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.edit-btn:hover {
+    background: #1d4ed8;
+    color: white;
+}
+
+.delete-btn {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.delete-btn:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.expand-btn {
+    background: #f0fdf4;
+    color: #059669;
+}
+
+.expand-btn:hover {
+    background: #059669;
+    color: white;
+}
+
+/* Custom Folder Content - Following category-semester-content structure */
+.custom-folder-content {
+    display: none;
+    background: white;
+}
+
+.custom-folder-content.show {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+/* Custom Folder Files Grid */
+.custom-folder-files {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+    max-height: 350px;
+    overflow-y: auto;
+    background: #f8fafc;
+}
+
+/* Custom Folder File Card - Following file-card structure */
+.custom-file-card {
+    background: white;
+    border-radius: 8px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.custom-file-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    border-color: #d1d5db;
+}
+
+.custom-file-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.custom-file-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f766e;
+    color: white;
+    font-size: 16px;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.custom-file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.custom-file-name {
+    font-weight: 600;
+    color: var(--dark);
+    font-size: 13px;
+    line-height: 1.3;
+    margin-bottom: 3px;
+    word-break: break-word;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.custom-file-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.custom-file-description {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 6px;
+    padding: 6px;
+    background: #f8fafc;
+    border-radius: 4px;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Empty State for Custom Folders */
+.custom-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+}
+
+.custom-empty-icon {
+    font-size: 48px;
+    color: #cbd5e1;
+    margin-bottom: 16px;
+}
+
+.custom-empty-state h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: #374151;
+}
+
+.custom-empty-state p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Loading State */
+.loading-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+}
+
+.loading-state i {
+    font-size: 24px;
+    margin-bottom: 12px;
+    animation: spin 1s linear infinite;
+}
+
+/* Custom folder expand icon */
+.custom-expand-icon {
+    font-size: 18px;
+    color: #64748b;
+    transition: transform 0.3s ease;
+    margin-left: 8px;
+}
+
+.custom-expand-icon.rotated {
+    transform: rotate(90deg);
+}
+
+/* Academic Year and Semester indicators for custom folders */
+.custom-folder-academic-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.academic-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.academic-year-badge {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.semester-badge {
+    background: #f0fdf4;
+    color: #059669;
+}
+
+/* Custom folder creation button */
+.add-custom-folder-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #059669;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+.add-custom-folder-btn:hover {
+    background: #047857;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+/* Animation keyframes */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    to { 
+        transform: rotate(360deg); 
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .custom-folders-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .custom-folder-header {
+        padding: 12px 16px;
+    }
+    
+    .custom-folder-actions {
+        opacity: 1;
+        transform: translateX(0);
+        position: static;
+    }
+    
+    .custom-folder-files {
+        padding: 12px;
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .custom-folder-name {
+        font-size: 13px;
+    }
+    
+    .custom-folder-count,
+    .custom-folder-description {
+        font-size: 10px;
+    }
+    
+    .folder-action-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+}
