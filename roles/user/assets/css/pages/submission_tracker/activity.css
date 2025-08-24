@@ -34,7 +34,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: #648b6e;
     font-size: 20px;
     flex-shrink: 0;
 }
@@ -60,7 +60,7 @@
     display: flex;
     gap: 20px;
     font-size: 12px;
-    color: #64748b;
+    color: #648b69;
     flex-wrap: wrap;
 }
 
@@ -73,7 +73,7 @@
 
 .file-size {
     font-size: 12px;
-    color: #64748b;
+    color: #648b6c;
     background: #f1f5f9;
     padding: 3px 6px;
     border-radius: 3px;
