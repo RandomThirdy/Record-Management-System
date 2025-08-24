@@ -21,7 +21,7 @@
 }
 
 .section-header p {
-    color: #64748b;
+    color: #648b6e;
     font-size: 14px;
     margin: 0;
 }
@@ -87,7 +87,7 @@
 
 .semester-name {
     font-size: 14px;
-    color: #64748b;
+    color: #648b79;
     font-weight: 500;
 }
 
@@ -166,11 +166,11 @@
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: #64748b;
+    color: #648b71;
 }
 
 .stat-item i {
-    color: #9ca3af;
+    color: #9cafa0;
 }
 
 /* Enhanced Stats Overview */
@@ -252,7 +252,7 @@
 
 .stat-label {
     font-size: 14px;
-    color: #64748b;
+    color: #658b64;
     font-weight: 500;
     margin-bottom: 8px;
 }
