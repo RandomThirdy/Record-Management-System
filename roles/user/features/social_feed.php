@@ -24,14 +24,28 @@ if (!$currentUser['is_approved']) {
     exit();
 }
 
-// Get user's department ID - CRITICAL for filtering
-$userDepartmentId = null;
+// Get department information for profile image - SAFE ACCESS
+$departmentImage = null;
+$departmentCode = null;
 
-// First, try to get department_id from currentUser
+// Check if department_id exists and is not null
 if (isset($currentUser['department_id']) && $currentUser['department_id']) {
-    $userDepartmentId = $currentUser['department_id'];
-} elseif (isset($currentUser['id'])) {
-    // If not available, fetch from database
+    try {
+        $stmt = $pdo->prepare("SELECT department_code FROM departments WHERE id = ?");
+        $stmt->execute([$currentUser['department_id']]);
+        $department = $stmt->fetch();
+        
+        if ($department) {
+            $departmentCode = $department['department_code'];
+            $departmentImage = "../../img/{$departmentCode}.jpg";
+        }
+    } catch(Exception $e) {
+        error_log("Department image error: " . $e->getMessage());
+    }
+}
+
+// If getCurrentUser() doesn't include department info, get it separately
+if (!isset($currentUser['department_id']) && isset($currentUser['id'])) {
     try {
         $stmt = $pdo->prepare("
             SELECT u.department_id, d.department_code, d.department_name 
@@ -43,198 +57,101 @@ if (isset($currentUser['department_id']) && $currentUser['department_id']) {
         $userDept = $stmt->fetch();
         
         if ($userDept && $userDept['department_id']) {
-            $userDepartmentId = $userDept['department_id'];
             $currentUser['department_id'] = $userDept['department_id'];
             $currentUser['department_name'] = $userDept['department_name'];
+            $departmentCode = $userDept['department_code'];
+            $departmentImage = "../../img/{$departmentCode}.jpg";
         }
     } catch(Exception $e) {
         error_log("Department fetch error: " . $e->getMessage());
     }
 }
 
-// If user has no department assigned, restrict access
-if (!$userDepartmentId) {
-    session_unset();
-    session_destroy();
-    header('Location: login.php?error=no_department_assigned');
-    exit();
-}
-
-// Define file categories
-$fileCategories = [
-    'ipcr_accomplishment' => [
-        'name' => 'IPCR Accomplishment',
-        'icon' => 'bxs-trophy',
-        'color' => '#f59e0b'
-    ],
-    'ipcr_target' => [
-        'name' => 'IPCR Target',
-        'icon' => 'bxs-bullseye',
-        'color' => '#ef4444'
-    ],
-    'workload' => [
-        'name' => 'Workload',
-        'icon' => 'bxs-briefcase',
-        'color' => '#8b5cf6'
-    ],
-    'course_syllabus' => [
-        'name' => 'Course Syllabus',
-        'icon' => 'bxs-book-content',
-        'color' => '#06b6d4'
-    ],
-    'syllabus_acceptance' => [
-        'name' => 'Course Syllabus Acceptance Form',
-        'icon' => 'bxs-check-circle',
-        'color' => '#10b981'
-    ],
-    'exam' => [
-        'name' => 'Exam',
-        'icon' => 'bxs-file-doc',
-        'color' => '#dc2626'
-    ],
-    'tos' => [
-        'name' => 'TOS',
-        'icon' => 'bxs-spreadsheet',
-        'color' => '#059669'
-    ],
-    'class_record' => [
-        'name' => 'Class Record',
-        'icon' => 'bxs-data',
-        'color' => '#7c3aed'
-    ],
-    'grading_sheet' => [
-        'name' => 'Grading Sheet',
-        'icon' => 'bxs-calculator',
-        'color' => '#ea580c'
-    ],
-    'attendance_sheet' => [
-        'name' => 'Attendance Sheet',
-        'icon' => 'bxs-user-check',
-        'color' => '#0284c7'
-    ],
-    'stakeholder_feedback' => [
-        'name' => 'Stakeholder\'s Feedback Form w/ Summary',
-        'icon' => 'bxs-comment-detail',
-        'color' => '#9333ea'
-    ],
-    'consultation' => [
-        'name' => 'Consultation',
-        'icon' => 'bxs-chat',
-        'color' => '#0d9488'
-    ],
-    'lecture' => [
-        'name' => 'Lecture',
-        'icon' => 'bxs-chalkboard',
-        'color' => '#7c2d12'
-    ],
-    'activities' => [
-        'name' => 'Activities',
-        'icon' => 'bxs-game',
-        'color' => '#be185d'
-    ],
-    'exam_acknowledgement' => [
-        'name' => 'CEIT-QF-03 Discussion of Examination Acknowledgement Receipt Form',
-        'icon' => 'bxs-receipt',
-        'color' => '#1e40af'
-    ],
-    'consultation_log' => [
-        'name' => 'Consultation Log Sheet Form',
-        'icon' => 'bxs-notepad',
-        'color' => '#374151'
-    ]
+// Get comprehensive statistics for the dashboard
+$stats = [
+    'total_files' => 0,
+    'total_folders' => 0,
+    'storage_used' => 0,
+    'recent_uploads' => [],
+    'public_files' => 0,
+    'favorite_files' => 0,
+    'department_files' => 0,
+    'downloads_today' => 0
 ];
 
-// Get departments from database - ONLY user's department
-function getUserDepartment($pdo, $departmentId) {
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM departments WHERE id = ? AND is_active = 1");
-        $stmt->execute([$departmentId]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    } catch(Exception $e) {
-        error_log("Error fetching user department: " . $e->getMessage());
-        return null;
-    }
-}
-
-// Get all departments for upload modal (optional - you might want to restrict this too)
-function getAllDepartments($pdo) {
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM departments WHERE is_active = 1 ORDER BY department_name");
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch(Exception $e) {
-        error_log("Error fetching departments: " . $e->getMessage());
-        return [];
-    }
-}
-
-// Get ONLY user's department
-$userDepartment = getUserDepartment($pdo, $userDepartmentId);
-$departments = $userDepartment ? [$userDepartment] : []; // Show only user's department
-
-// For upload modal, decide if you want to show all departments or just user's department
-$allDepartments = getAllDepartments($pdo); // Change this if you want to restrict upload too
-
-// Department configuration with colors and icons
-$departmentConfig = [
-    'TED' => ['icon' => 'bxs-graduation', 'color' => '#f59e0b'],
-    'MD' => ['icon' => 'bxs-business', 'color' => '#1e40af'],
-    'FASD' => ['icon' => 'bx bx-water', 'color' => '#0284c7'],
-    'ASD' => ['icon' => 'bxs-palette', 'color' => '#d946ef'],
-    'ITD' => ['icon' => 'bxs-chip', 'color' => '#0f766e'],
-    'NSTP' => ['icon' => 'bxs-user-check', 'color' => '#22c55e'],
-    'OTHR' => ['icon' => 'bxs-file', 'color' => '#6b7280']
-];
-
-// Get department information for profile image - SAFE ACCESS
-$departmentImage = null;
-$departmentCode = null;
-
-if ($userDepartment) {
-    $departmentCode = $userDepartment['department_code'];
-    $departmentImage = "../../img/{$departmentCode}.jpg";
-}
-
-// Get or create category folder - ONLY for user's department
-function getOrCreateCategoryFolder($pdo, $departmentId, $category, $semester, $userId, $userDepartmentId) {
-    // Security check: ensure user can only create folders in their own department
-    if ($departmentId != $userDepartmentId) {
-        throw new Exception("Access denied: Cannot create folder in different department");
+try {
+    // Get user's file count and storage - Updated query to handle files without folders
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as file_count, 
+               COALESCE(SUM(file_size), 0) as total_size,
+               SUM(CASE WHEN is_public = 1 THEN 1 ELSE 0 END) as public_count,
+               SUM(CASE WHEN is_favorite = 1 THEN 1 ELSE 0 END) as favorite_count
+        FROM files f 
+        WHERE f.uploaded_by = ? AND f.is_deleted = 0
+    ");
+    $stmt->execute([$currentUser['id']]);
+    $fileStats = $stmt->fetch();
+    
+    $stats['total_files'] = $fileStats['file_count'];
+    $stats['storage_used'] = $fileStats['total_size'];
+    $stats['public_files'] = $fileStats['public_count'] ?? 0;
+    $stats['favorite_files'] = $fileStats['favorite_count'] ?? 0;
+    
+    // Get user's folder count
+    $stmt = $pdo->prepare("SELECT COUNT(*) as folder_count FROM folders WHERE created_by = ? AND is_deleted = 0");
+    $stmt->execute([$currentUser['id']]);
+    $folderStats = $stmt->fetch();
+    
+    $stats['total_folders'] = $folderStats['folder_count'];
+    
+    // Get department files count
+    if ($currentUser['department_id']) {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as dept_files 
+            FROM files f 
+            LEFT JOIN folders fo ON f.folder_id = fo.id 
+            WHERE (fo.department_id = ? OR f.uploaded_by IN (
+                SELECT id FROM users WHERE department_id = ?
+            )) AND f.is_deleted = 0
+        ");
+        $stmt->execute([$currentUser['department_id'], $currentUser['department_id']]);
+        $deptStats = $stmt->fetch();
+        $stats['department_files'] = $deptStats['dept_files'];
     }
     
-    try {
-        $semesterName = ($semester === 'first') ? 'First Semester' : 'Second Semester';
-        $academicYear = date('Y') . '-' . (date('Y') + 1);
-        $folderName = $academicYear . ' - ' . $semesterName;
-        
-        // Check if folder exists - ONLY in user's department
-        $stmt = $pdo->prepare("
-            SELECT id FROM folders 
-            WHERE department_id = ? AND folder_name = ? AND category = ? AND is_deleted = 0
-        ");
-        $stmt->execute([$departmentId, $folderName, $category]);
-        $folder = $stmt->fetch();
-        
-        if ($folder) {
-            return $folder['id'];
-        }
-        
-        // Create new folder - ONLY in user's department
-        $stmt = $pdo->prepare("
-            INSERT INTO folders (folder_name, description, created_by, department_id, category, folder_path, folder_level, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        
-        $description = "Academic files for {$semesterName} {$academicYear}";
-        $folderPath = "/departments/{$departmentId}/{$category}/{$semester}";
-        
-        $stmt->execute([$folderName, $description, $userId, $departmentId, $category, $folderPath, 2]);
-        return $pdo->lastInsertId();
-        
-    } catch(Exception $e) {
-        error_log("Error creating category folder: " . $e->getMessage());
-        return false;
-    }
+    // Get downloads today
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as downloads_today
+        FROM files f
+        WHERE f.uploaded_by = ? 
+        AND DATE(f.last_downloaded) = CURDATE()
+        AND f.is_deleted = 0
+    ");
+    $stmt->execute([$currentUser['id']]);
+    $downloadStats = $stmt->fetch();
+    $stats['downloads_today'] = $downloadStats['downloads_today'] ?? 0;
+    
+    // Get recent uploads with more details - LEFT JOIN to handle files without folders
+    $stmt = $pdo->prepare("
+        SELECT f.original_name, f.file_size, f.uploaded_at, 
+               COALESCE(fo.folder_name, 'Uncategorized') as folder_name, 
+               f.file_type, f.file_extension, 
+               COALESCE(f.download_count, 0) as download_count, 
+               COALESCE(f.is_public, 0) as is_public, 
+               COALESCE(f.is_favorite, 0) as is_favorite
+        FROM files f
+        LEFT JOIN folders fo ON f.folder_id = fo.id
+        WHERE f.uploaded_by = ? AND f.is_deleted = 0
+        ORDER BY f.uploaded_at DESC
+        LIMIT 8
+    ");
+    $stmt->execute([$currentUser['id']]);
+    $stats['recent_uploads'] = $stmt->fetchAll();
+    
+} catch(Exception $e) {
+    error_log("Dashboard stats error: " . $e->getMessage());
+    // Add debug information
+    error_log("SQL Error details: " . print_r($pdo->errorInfo(), true));
 }
 
 // Format file size function
@@ -248,44 +165,86 @@ function formatFileSize($bytes, $precision = 2) {
     return round($bytes, $precision) . ' ' . $units[$i];
 }
 
-// Get file icon based on extension
-function getFileIcon($filename) {
-    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    
-    $iconMap = [
-        'pdf' => 'bxs-file-pdf',
-        'doc' => 'bxs-file-doc',
-        'docx' => 'bxs-file-doc',
-        'xls' => 'bxs-spreadsheet',
-        'xlsx' => 'bxs-spreadsheet',
-        'ppt' => 'bxs-file-blank',
-        'pptx' => 'bxs-file-blank',
-        'jpg' => 'bxs-file-image',
-        'jpeg' => 'bxs-file-image',
-        'png' => 'bxs-file-image',
-        'gif' => 'bxs-file-image',
-        'txt' => 'bxs-file-txt',
-        'zip' => 'bxs-file-archive',
-        'rar' => 'bxs-file-archive',
-        'mp4' => 'bxs-videos',
-        'avi' => 'bxs-videos',
-        'mp3' => 'bxs-music',
-        'wav' => 'bxs-music'
-    ];
-    
-    return isset($iconMap[$ext]) ? $iconMap[$ext] : 'bxs-file';
-}
-
-// Get user initials helper function
+// Get user's initials for fallback
 function getUserInitials($fullName) {
-    $names = explode(' ', $fullName);
+    $names = explode(' ', trim($fullName));
     $initials = '';
-    foreach($names as $name) {
-        if(!empty($name)) {
+    foreach ($names as $name) {
+        if (!empty($name)) {
             $initials .= strtoupper($name[0]);
         }
     }
-    return substr($initials, 0, 2);
+    return $initials ?: 'U';
+}
+
+// Get file type icon
+function getFileTypeIcon($fileType) {
+    if (empty($fileType)) {
+        return 'bxs-file';
+    }
+    
+    // Convert to lowercase for comparison
+    $fileType = strtolower($fileType);
+    
+    $icons = [
+        // Documents
+        'pdf' => 'bxs-file-pdf',
+        'doc' => 'bxs-file-doc',
+        'docx' => 'bxs-file-doc',
+        'txt' => 'bxs-file-txt',
+        'rtf' => 'bxs-file-doc',
+        
+        // Spreadsheets
+        'xls' => 'bxs-spreadsheet',
+        'xlsx' => 'bxs-spreadsheet',
+        'csv' => 'bxs-spreadsheet',
+        
+        // Presentations
+        'ppt' => 'bxs-file-doc',
+        'pptx' => 'bxs-file-doc',
+        
+        // Images
+        'jpg' => 'bxs-image',
+        'jpeg' => 'bxs-image',
+        'png' => 'bxs-image',
+        'gif' => 'bxs-image',
+        'bmp' => 'bxs-image',
+        'svg' => 'bxs-image',
+        'webp' => 'bxs-image',
+        
+        // Videos
+        'mp4' => 'bxs-videos',
+        'avi' => 'bxs-videos',
+        'mov' => 'bxs-videos',
+        'wmv' => 'bxs-videos',
+        'flv' => 'bxs-videos',
+        'webm' => 'bxs-videos',
+        
+        // Audio
+        'mp3' => 'bxs-music',
+        'wav' => 'bxs-music',
+        'flac' => 'bxs-music',
+        'aac' => 'bxs-music',
+        
+        // Archives
+        'zip' => 'bxs-file-archive',
+        'rar' => 'bxs-file-archive',
+        '7z' => 'bxs-file-archive',
+        'tar' => 'bxs-file-archive',
+        'gz' => 'bxs-file-archive',
+        
+        // Code
+        'html' => 'bxs-file-html',
+        'css' => 'bxs-file-css',
+        'js' => 'bxs-file-js',
+        'php' => 'bxs-file-doc',
+        'py' => 'bxs-file-doc',
+        'java' => 'bxs-file-doc',
+        'cpp' => 'bxs-file-doc',
+        'c' => 'bxs-file-doc'
+    ];
+    
+    return $icons[$fileType] ?? 'bxs-file';
 }
 ?>
 <!DOCTYPE html>
@@ -293,14 +252,18 @@ function getUserInitials($fullName) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $userDepartment ? $userDepartment['department_name'] : 'Department'; ?> Folders - CVSU Naic</title>
+    <title>Dashboard - CVSU Naic</title>
     <link href='https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css' rel='stylesheet'>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/components/navbar.css">
     <link rel="stylesheet" href="../assets/css/components/sidebar.css">
-    <link rel="stylesheet" href="../assets/css/pages/folders.css">
+    <link rel="stylesheet" href="../assets/css/pages/dashboard/file_table.css">
+    <link rel="stylesheet" href="../assets/css/pages/dashboard/grid_layout.css">
+    <link rel="stylesheet" href="../assets/css/pages/dashboard/profile_system.css">
+    <link rel="stylesheet" href="../assets/css/pages/dashboard/responsive.css">
+    <link rel="stylesheet" href="../assets/css/pages/dashboard/stats_card.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    
+    <?php if ($departmentCode): ?>
     <style>
         .profile::after {
             content: '<?php echo $departmentCode; ?>';
@@ -317,298 +280,349 @@ function getUserInitials($fullName) {
             text-align: center;
         }
     </style>
+    <?php endif; ?>
 </head>
 <body>
-    <!-- Upload Modal -->
-    <div id="uploadModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; visibility: hidden; transition: all 0.3s ease;">
-        <div id="modalContainer" style="background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); transform: scale(0.9) translateY(20px); transition: all 0.3s ease; font-family: 'Poppins', sans-serif;">
-        
-            <!-- Modal Header -->
-            <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 24px; border-radius: 16px 16px 0 0; position: relative; overflow: hidden; font-family: 'Poppins', sans-serif;">
-                <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255, 255, 255, 0.1); border-radius: 50%;"></div>
-                <div style="position: absolute; bottom: -30px; left: -30px; width: 80px; height: 80px; background: rgba(255, 255, 255, 0.1); border-radius: 50%;"></div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1;">
-                    <div>
-                        <h2 style="margin: 0; font-size: 24px; font-weight: 600; margin-bottom: 4px;">
-                            <i class='bx bxs-cloud-upload' style="margin-right: 8px; font-size: 28px;"></i>
-                            Upload Files
-                        </h2>
-                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Share your documents with your department</p>
-                    </div>
-                    <button onclick="closeUploadModal()" style="background: rgba(255, 255, 255, 0.2); border: none; border-radius: 8px; padding: 8px; color: white; cursor: pointer; transition: all 0.3s ease; font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
-                        <i class='bx bx-x'></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Modal Content -->
-            <form id="uploadForm" enctype="multipart/form-data" style="padding: 0;">
-                
-                <!-- Department Selection - Pre-filled with user's department -->
-                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
-                        <i class='bx bxs-building' style="color: #10b981; margin-right: 8px;"></i>
-                        Your Department
-                    </label>
-                    <div style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb; color: #374151; font-size: 14px;">
-                        <?php echo $userDepartment ? htmlspecialchars($userDepartment['department_name']) . ' (' . $userDepartment['department_code'] . ')' : 'No Department Assigned'; ?>
-                    </div>
-                    <input type="hidden" name="department" value="<?php echo $userDepartmentId; ?>">
-                </div>
-
-                <!-- Category Selection -->
-                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
-                        <i class='bx bxs-category' style="color: #10b981; margin-right: 8px;"></i>
-                        File Category
-                    </label>
-                    <select name="category" required style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
-                        <option value="">Select a category...</option>
-                        <?php foreach ($fileCategories as $key => $category): ?>
-                            <option value="<?php echo $key; ?>"><?php echo htmlspecialchars($category['name']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <!-- Academic Year Selection -->
-                    <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
-                            <i class='bx bxs-book' style="color: #10b981; margin-right: 8px;"></i>
-                            Academic Year
-                        </label>
-                        <select name="academic_year" required style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" 
-                            onfocus="this.style.borderColor='#10b981'" 
-                            onblur="this.style.borderColor='#e5e7eb'">
-                            <option value="">Select academic year...</option>
-                            <?php 
-                                $currentYear = date("Y");
-                                for ($i = $currentYear; $i >= $currentYear - 5; $i--) {
-                                    $nextYear = $i + 1;
-                                    echo "<option value='{$i}-{$nextYear}'>{$i} - {$nextYear}</option>";
-                                }
-                            ?>
-                        </select>
-                    </div>            
-                <!-- Semester Selection -->
-                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
-                        <i class='bx bxs-calendar' style="color: #10b981; margin-right: 8px;"></i>
-                        Academic Semester
-                    </label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
-                            <input type="radio" name="semester" value="first" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
-                            <div>
-                                <div style="font-weight: 600; color: #374151;">First Semester</div>
-                            </div>
-                        </label>
-                        <label style="display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; background: white;" onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white'">
-                            <input type="radio" name="semester" value="second" required style="margin-right: 12px; transform: scale(1.2); accent-color: #10b981;">
-                            <div>
-                                <div style="font-weight: 600; color: #374151;">Second Semester</div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- File Upload Area -->
-                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
-                        <i class='bx bxs-file-plus' style="color: #10b981; margin-right: 8px;"></i>
-                        Upload Files
-                    </label>
-                    
-                    <div id="dropZone" style="border: 2px dashed #10b981; border-radius: 12px; padding: 40px 20px; text-align: center; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden;">
-                        <input type="file" id="fileInput" name="files[]" multiple accept="*" style="display: none;">
-                        
-                        <div id="uploadPrompt">
-                            <i class='bx bxs-cloud-upload' style="font-size: 48px; color: #10b981; margin-bottom: 16px; display: block;"></i>
-                            <h3 style="margin: 0 0 8px 0; color: #065f46; font-size: 18px; font-weight: 600;">Drop files here or click to browse</h3>
-                            <p style="margin: 0; color: #059669; font-size: 14px; opacity: 0.8;">Support for PDF, DOC, XLS, PPT, Images and more</p>
-                            <div style="margin-top: 16px; display: inline-flex; align-items: center; background: rgba(16, 185, 129, 0.1); padding: 8px 16px; border-radius: 20px; font-size: 12px; color: #065f46; font-weight: 500;">
-                                <i class='bx bx-info-circle' style="margin-right: 6px;"></i>
-                                Max file size: 50MB per file
-                            </div>
-                        </div>
-                        
-                        <div id="filePreview" style="display: none; text-align: left;"></div>
-                    </div>
-                    
-                    <!-- Progress Bar -->
-                    <div id="uploadProgress" style="display: none; margin-top: 16px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="font-size: 14px; font-weight: 500; color: #374151;">Uploading files...</span>
-                            <span id="progressPercent" style="font-size: 14px; font-weight: 500; color: #10b981;">0%</span>
-                        </div>
-                        <div style="width: 100%; background: #f3f4f6; border-radius: 8px; height: 8px; overflow: hidden;">
-                            <div id="progressBar" style="width: 0%; background: linear-gradient(90deg, #10b981, #059669); height: 100%; border-radius: 8px; transition: width 0.3s ease;"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- File Description -->
-                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
-                        <i class='bx bxs-note' style="color: #10b981; margin-right: 8px;"></i>
-                        Description (Optional)
-                    </label>
-                    <textarea id="fileDescription" name="description" placeholder="Add a description for your files..." style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; resize: vertical; min-height: 80px; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'" onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'"></textarea>
-                </div>
-
-                <!-- File Tags -->
-                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">
-                        <i class='bx bxs-tag' style="color: #10b981; margin-right: 8px;"></i>
-                        Tags
-                    </label>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-                        <button type="button" onclick="addTag('Curriculum')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Curriculum</button>
-                        <button type="button" onclick="addTag('Research')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Research</button>
-                        <button type="button" onclick="addTag('Guidelines')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Guidelines</button>
-                        <button type="button" onclick="addTag('Reports')" style="background: #f0fdf4; color: #065f46; border: 1px solid #10b981; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#10b981'; this.style.color='white'" onmouseout="this.style.background='#f0fdf4'; this.style.color='#065f46'">Reports</button>
-                    </div>
-                    <div id="selectedTags" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;"></div>
-                    <input type="text" id="customTag" placeholder="Add custom tag..." style="width: 100%; padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.3s ease;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e5e7eb'">
-                    <input type="hidden" id="tagsInput" name="tags" value="">
-                </div>
-
-                <!-- Modal Footer -->
-                <div style="padding: 24px; background: #f9fafb; border-radius: 0 0 16px 16px;">
-                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                        <button type="button" onclick="closeUploadModal()" style="background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
-                            Cancel
-                        </button>
-                        <button type="submit" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                            <i class='bx bxs-cloud-upload' style="margin-right: 8px;"></i>
-                            Upload Files
-                        </button>
-                    </div>
-                    
-                    <div style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border-left: 4px solid #10b981;">
-                        <p style="margin: 0; font-size: 12px; color: #065f46; line-height: 1.4;">
-                            <i class='bx bx-shield-check' style="margin-right: 4px;"></i>
-                            Your files will be securely stored and organized in your department for easy access.
-                        </p>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <?php include '../components/sidebar.html'; ?>
 
     <!-- Content -->
     <section id="content">
         <?php include '../components/navbar.html'; ?>
 
+        <!-- Main Content -->
         <main>
+            <!-- Welcome Section -->
             <div class="head-title">
                 <div class="left">
-                    <h1>Upload File</h1>
+                    <h1>Welcome, <?php echo htmlspecialchars($currentUser['full_name']); ?>!</h1>
                     <ul class="breadcrumb">
                         <li>
-                            <a href="dashboard.php">Dashboard</a>
+                            <a href="#">Dashboard</a>
                         </li>
                         <li><i class='bx bx-chevron-right'></i></li>
                         <li>
-                            <a class="" href="#">Department Folders</a>
+                            <a class="active" href="#">Overview</a>
                         </li>
                     </ul>
                 </div>
-                <button onclick="openUploadModal()" class="upload-btn">
-                    <i class='bx bxs-cloud-upload'></i>
-                    <span class="text">Upload File</span>
-                </button>
             </div>
 
-            <!-- Search Section -->
-            <div class="search-section">
-                <div class="search-bar">
-                    <input type="text" placeholder="Search in your department..." id="departmentSearch">
-                    <i class='bx bx-search'></i>
+            <!-- Debug Section - Remove this after confirming files are showing -->
+            <?php if (empty($stats['recent_uploads'])): ?>
+            <div class="dashboard-card" style="margin-bottom: 24px; border: 2px solid #f59e0b;">
+                <div class="card-header">
+                    <h3 style="color: #f59e0b;">🔍 Debug Information</h3>
+                </div>
+                <div style="padding: 16px; font-size: 14px; background: rgba(245, 158, 11, 0.05);">
+                    <?php
+                    // Check if files exist for this user
+                    try {
+                        $debugStmt = $pdo->prepare("SELECT COUNT(*) as total FROM files WHERE uploaded_by = ?");
+                        $debugStmt->execute([$currentUser['id']]);
+                        $totalFiles = $debugStmt->fetch()['total'];
+                        
+                        $debugStmt = $pdo->prepare("SELECT COUNT(*) as deleted FROM files WHERE uploaded_by = ? AND is_deleted = 1");
+                        $debugStmt->execute([$currentUser['id']]);
+                        $deletedFiles = $debugStmt->fetch()['deleted'];
+                        
+                        $debugStmt = $pdo->prepare("SELECT COUNT(*) as no_folder FROM files WHERE uploaded_by = ? AND folder_id IS NULL");
+                        $debugStmt->execute([$currentUser['id']]);
+                        $noFolderFiles = $debugStmt->fetch()['no_folder'];
+                        
+                        echo "<p><strong>Total files for user {$currentUser['id']}:</strong> $totalFiles</p>";
+                        echo "<p><strong>Deleted files:</strong> $deletedFiles</p>";
+                        echo "<p><strong>Files without folder:</strong> $noFolderFiles</p>";
+                        
+                        if ($totalFiles > 0) {
+                            $debugStmt = $pdo->prepare("SELECT id, original_name, folder_id, is_deleted, uploaded_at FROM files WHERE uploaded_by = ? LIMIT 3");
+                            $debugStmt->execute([$currentUser['id']]);
+                            $sampleFiles = $debugStmt->fetchAll();
+                            
+                            echo "<p><strong>Sample files:</strong></p><ul>";
+                            foreach ($sampleFiles as $file) {
+                                $status = $file['is_deleted'] ? 'DELETED' : 'ACTIVE';
+                                echo "<li>ID: {$file['id']}, Name: {$file['original_name']}, Folder: {$file['folder_id']}, Status: $status</li>";
+                            }
+                            echo "</ul>";
+                        }
+                    } catch (Exception $e) {
+                        echo "<p style='color: red;'>Debug error: " . $e->getMessage() . "</p>";
+                    }
+                    ?>
+                    <p style="margin-top: 16px;"><em>This debug section will be removed once files are displaying correctly.</em></p>
                 </div>
             </div>
-            <!-- Department Tree with Categories -->
-                <?php if (!empty($departments)): ?>
-                    <?php foreach ($departments as $dept): 
-                        $config = $departmentConfig[$dept['department_code']] ?? $departmentConfig['OTHR'];
-                    ?>
-                        <div class="department-item" data-department="<?php echo $dept['id']; ?>">
-                            <div class="department-header" onclick="toggleDepartment('<?php echo $dept['id']; ?>')">
-                                <div class="department-icon" style="background-color: <?php echo $config['color']; ?>">
-                                    <i class='bx <?php echo $config['icon']; ?>'></i>
-                                </div>
-                                <div class="department-info">
-                                    <div class="department-name"><?php echo htmlspecialchars($dept['department_name']); ?></div>
-                                    <div class="department-code"><?php echo $dept['department_code']; ?></div>
-                                </div>
-                                <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $dept['id']; ?>"></i>
-                            </div>
-                            
-                            <div class="department-content" id="content-<?php echo $dept['id']; ?>">
-                                <!-- Categories Grid -->
-                                <div class="categories-grid">
-                                    <?php foreach ($fileCategories as $categoryKey => $category): ?>
-                                        <div class="category-item" data-category="<?php echo $categoryKey; ?>" onclick="toggleCategory('<?php echo $dept['id']; ?>', '<?php echo $categoryKey; ?>')">
-                                            <div class="category-header">
-                                                <div class="category-icon" style="background-color: <?php echo $category['color']; ?>">
-                                                    <i class='bx <?php echo $category['icon']; ?>'></i>
-                                                </div>
-                                                <div class="category-info">
-                                                    <div class="category-name"><?php echo htmlspecialchars($category['name']); ?></div>
-                                                    <div class="category-count">0 files</div>
-                                                </div>
-                                                <i class='bx bx-chevron-right expand-icon' id="icon-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>"></i>
-                                            </div>
-                                            
-                                            <!-- Semester Content for this Category -->
-                                            <div class="category-semester-content" id="category-content-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>">
-                                                <div class="semester-tabs">
-                                                    <button class="semester-tab active" onclick="showCategorySemester('<?php echo $dept['id']; ?>', '<?php echo $categoryKey; ?>', 'first')">
-                                                        <i class='bx bxs-folder'></i> First Semester
-                                                    </button>
-                                                    <button class="semester-tab" onclick="showCategorySemester('<?php echo $dept['id']; ?>', '<?php echo $categoryKey; ?>', 'second')">
-                                                        <i class='bx bxs-folder'></i> Second Semester
-                                                    </button>
-                                                </div>
-                                                
-                                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>-first">
-                                                    <div class="empty-state">
-                                                        <i class='bx bx-folder-open empty-icon'></i>
-                                                        <p>No files in First Semester</p>
-                                                        <small>Files uploaded to this category and semester will appear here</small>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="files-grid" id="files-<?php echo $dept['id']; ?>-<?php echo $categoryKey; ?>-second" style="display: none;">
-                                                    <div class="empty-state">
-                                                        <i class='bx bx-folder-open empty-icon'></i>
-                                                        <p>No files in Second Semester</p>
-                                                        <small>Files uploaded to this category and semester will appear here</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="empty-state" style="padding: 60px 20px;">
-                        <i class='bx bx-error-circle empty-icon' style="color: #ef4444;"></i>
-                        <h3 style="color: #374151; margin-bottom: 8px;">No Department Assigned</h3>
-                        <p>Please contact your administrator to assign you to a department.</p>
+            <?php endif; ?>
+
+            <!-- Enhanced Statistics Cards -->
+            <ul class="box-info">
+                <li>
+                    <i class='bx bxs-file'></i>
+                    <span class="text">
+                        <h3><?php echo number_format($stats['total_files']); ?></h3>
+                        <p>Total Files</p>
+                    </span>
+                </li>
+                <li>
+                    <i class='bx bxs-folder'></i>
+                    <span class="text">
+                        <h3><?php echo number_format($stats['total_folders']); ?></h3>
+                        <p>Total Folders</p>
+                    </span>
+                </li>
+                <li>
+                    <i class='bx bxs-cloud'></i>
+                    <span class="text">
+                        <h3><?php echo formatFileSize($stats['storage_used']); ?></h3>
+                        <p>Storage Used</p>
+                    </span>
+                </li>
+                <li>
+                    <i class='bx bxs-download'></i>
+                    <span class="text">
+                        <h3><?php echo number_format($stats['downloads_today']); ?></h3>
+                        <p>Downloads Today</p>
+                    </span>
+                </li>
+            </ul>
+
+            <!-- Dashboard Grid Layout -->
+            <div class="dashboard-grid">
+                <!-- Recent Files -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Recent Files</h3>
+                        <div class="card-actions">
+                            <i class='bx bx-search' title="Search Files"></i>
+                            <i class='bx bx-filter' title="Filter Files"></i>
+                            <i class='bx bx-refresh' title="Refresh"></i>
+                        </div>
                     </div>
-                <?php endif; ?>
+                    
+                    <?php if (!empty($stats['recent_uploads'])): ?>
+                        <div style="overflow-x: auto;">
+                            <table class="files-table">
+                                <thead>
+                                    <tr>
+                                        <th>File</th>
+                                        <th>Folder</th>
+                                        <th>Size</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach (array_slice($stats['recent_uploads'], 0, 6) as $file): ?>
+                                        <tr>
+                                            <td>
+                                                <div class="file-info">
+                                                    <div class="file-icon">
+                                                        <i class='bx <?php echo getFileTypeIcon($file['file_type'] ?? $file['file_extension'] ?? pathinfo($file['original_name'], PATHINFO_EXTENSION)); ?>'></i>
+                                                    </div>
+                                                    <div class="file-details">
+                                                        <p><?php echo htmlspecialchars(strlen($file['original_name']) > 30 ? substr($file['original_name'], 0, 30) . '...' : $file['original_name']); ?></p>
+                                                        <div class="file-meta"><?php echo number_format($file['download_count'] ?? 0); ?> downloads</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td><?php echo htmlspecialchars($file['folder_name']); ?></td>
+                                            <td><?php echo formatFileSize($file['file_size']); ?></td>
+                                            <td>
+                                                <?php if (isset($file['is_favorite']) && $file['is_favorite']): ?>
+                                                    <span class="status-badge status-favorite">★ Favorite</span>
+                                                <?php elseif (isset($file['is_public']) && $file['is_public']): ?>
+                                                    <span class="status-badge status-public">🌐 Public</span>
+                                                <?php else: ?>
+                                                    <span class="status-badge status-private">🔒 Private</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?php echo date('M j, Y', strtotime($file['uploaded_at'])); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <?php if (count($stats['recent_uploads']) > 6): ?>
+                            <div style="text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.06);">
+                                <a href="files.php" style="color: var(--blue); text-decoration: none; font-weight: 500; font-size: 14px;">
+                                    View All Files (<?php echo count($stats['recent_uploads']); ?> total) →
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <div class="empty-state">
+                            <i class='bx bx-file'></i>
+                            <p>No files uploaded yet</p>
+                            <a href="upload.php">Upload your first file</a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Quick Actions & Info -->
+                <div>
+                    <!-- Quick Actions -->
+                    <div class="dashboard-card" style="margin-bottom: 24px;">
+                        <div class="card-header">
+                            <h3>Quick Actions</h3>
+                        </div>
+                        <div class="quick-actions">
+                            <a href="upload.php" class="action-item">
+                                <div class="action-content">
+                                    <div class="action-icon">
+                                        <i class='bx bx-upload'></i>
+                                    </div>
+                                    <p>Upload Files</p>
+                                </div>
+                                <i class='bx bx-chevron-right action-arrow'></i>
+                            </a>
+                            
+                            <a href="folders.php?action=create" class="action-item">
+                                <div class="action-content">
+                                    <div class="action-icon">
+                                        <i class='bx bx-folder-plus'></i>
+                                    </div>
+                                    <p>Create Folder</p>
+                                </div>
+                                <i class='bx bx-chevron-right action-arrow'></i>
+                            </a>
+                            
+                            <a href="files.php" class="action-item">
+                                <div class="action-content">
+                                    <div class="action-icon">
+                                    <i class='bx bx-folder-open'></i>
+                                    </div>
+                                    <p>Organize Files</p>
+                                </div>
+                                <i class='bx bx-chevron-right action-arrow'></i>
+                            </a>
+                            
+                            <a href="shared.php" class="action-item">
+                                <div class="action-content">
+                                    <div class="action-icon">
+                                        <i class='bx bx-share'></i>
+                                    </div>
+                                    <p>Share Documents</p>
+                                </div>
+                                <i class='bx bx-chevron-right action-arrow'></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Account Information -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Account Information</h3>
+                            <div class="card-actions">
+                                <i class='bx bx-edit' title="Edit Profile"></i>
+                            </div>
+                        </div>
+                        <div class="account-info">
+                            <div class="info-item">
+                                <div class="info-label">Department</div>
+                                <div class="info-value"><?php echo htmlspecialchars($currentUser['department_name'] ?? 'N/A'); ?></div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Employee ID</div>
+                                <div class="info-value"><?php echo htmlspecialchars($currentUser['employee_id'] ?? 'N/A'); ?></div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Position</div>
+                                <div class="info-value"><?php echo htmlspecialchars($currentUser['position'] ?? 'N/A'); ?></div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Member Since</div>
+                                <div class="info-value"><?php echo date('M j, Y', strtotime($currentUser['created_at'])); ?></div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Last Login</div>
+                                <div class="info-value">
+                                    <?php 
+                                    if ($currentUser['last_login']) {
+                                        echo date('M j, Y g:i A', strtotime($currentUser['last_login']));
+                                    } else {
+                                        echo 'First login';
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Account Status</div>
+                                <div class="info-value" style="color: <?php echo $currentUser['is_approved'] ? '#059669' : '#dc2626'; ?>; font-weight: 600;">
+                                    <?php echo $currentUser['is_approved'] ? '✓ Approved' : '⏳ Pending'; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Statistics Row -->
+            <div class="dashboard-grid" style="margin-top: 24px;">
+                <!-- Storage & Activity -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Storage & Activity Overview</h3>
+                        <div class="card-actions">
+                            <i class='bx bx-bar-chart' title="View Analytics"></i>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 16px;">
+                        <div class="info-item">
+                            <div class="info-label">Public Files</div>
+                            <div class="info-value" style="color: #059669;"><?php echo number_format($stats['public_files']); ?> files</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Favorite Files</div>
+                            <div class="info-value" style="color: #d97706;"><?php echo number_format($stats['favorite_files']); ?> files</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Department Files</div>
+                            <div class="info-value" style="color: var(--blue);"><?php echo number_format($stats['department_files']); ?> files</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Recent Activity</div>
+                            <div class="info-value">
+                                <?php 
+                                $recentCount = count($stats['recent_uploads']);
+                                echo $recentCount > 0 ? "$recentCount uploads this week" : "No recent activity";
+                                ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>System Status</h3>
+                        <div class="card-actions">
+                            <i class='bx bx-info-circle' title="System Information"></i>
+                        </div>
+                    </div>
+                    <div class="account-info">
+                        <div class="info-item">
+                            <div class="info-label">Server Status</div>
+                            <div class="info-value" style="color: #059669;">🟢 Online</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Backup Status</div>
+                            <div class="info-value" style="color: #059669;">✓ Up to date</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Storage Health</div>
+                            <div class="info-value" style="color: #059669;">Optimal</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Last Sync</div>
+                            <div class="info-value"><?php echo date('g:i A'); ?></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </section>
-
-    <script>
-        window.userDepartmentId = <?php echo json_encode($userDepartmentId); ?>;
-        window.fileCategories = <?php echo json_encode($fileCategories); ?>;
-    </script>
-    <script src="../assets/js/pages/folders.js"></script>
+    <script src="../assets/js/files/dashboard.js"></script>
     <script src="../assets/js/components/navbar.js"></script>
 </body>
 </html>
