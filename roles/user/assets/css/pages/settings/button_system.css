@@ -1,7 +1,4 @@
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-}
+
 
 .btn {
     font-family: 'Poppins', sans-serif;
