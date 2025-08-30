@@ -1,0 +1,43 @@
+
+
+.btn {
+    font-family: 'Poppins', sans-serif;
+    padding: 16px 32px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue) 0%, #2980b9 100%);
+    color: white;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+    color: white;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--blue);
+    border: 2px solid var(--blue);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Upload button enhancements */
+.btn-outline:hover {
+    background-color: var(--blue);
+    color: white;
+}
